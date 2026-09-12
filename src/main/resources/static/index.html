@@ -186,12 +186,21 @@
             </div>
 
             <div class="panel-actions">
-                <button id="addProductButton" class="btn btn-primary" title="Add a new Amazon product to monitor">
+                <button id="addProductButton" class="btn btn-primary" title="Add a new product to monitor">
                     <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     <span>Add Product</span>
+                </button>
+
+                <button id="comparePricesBtn" class="btn btn-outline" title="Compare prices across Amazon and Flipkart">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Compare Prices</span>
                 </button>
 
                 <button id="checkButton" class="btn btn-outline">
@@ -213,7 +222,7 @@
             </div>
         </div>
 
-        <!-- Controls Toolbar: Search, Filter, Sort (Features 2, 3, 4) -->
+        <!-- Controls Toolbar: Search, Store Filter, Status Filter, Sort (Features 2, 3, 4 & Phase 9) -->
         <div class="panel-toolbar">
             <div class="search-box">
                 <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -222,6 +231,19 @@
                 </svg>
                 <input type="text" id="searchInput" class="search-input" placeholder="Search products by name..." aria-label="Search products" autocomplete="off" />
                 <button id="clearSearchButton" class="btn-clear-search hidden" aria-label="Clear search" title="Clear search">&times;</button>
+            </div>
+
+            <!-- Store Filter Pills (Phase 9) -->
+            <div class="store-filter-pills" role="tablist" aria-label="Filter products by store">
+                <button class="store-pill active" data-store="all" role="tab" aria-selected="true">
+                    All Stores
+                </button>
+                <button class="store-pill store-pill-amazon" data-store="AMAZON" role="tab" aria-selected="false">
+                    Amazon
+                </button>
+                <button class="store-pill store-pill-flipkart" data-store="FLIPKART" role="tab" aria-selected="false">
+                    Flipkart
+                </button>
             </div>
 
             <div class="filter-pills" role="tablist" aria-label="Filter products">
@@ -466,9 +488,19 @@
                     </div>
 
                     <div class="form-group">
-                        <label for="productUrlInput" class="form-label">Amazon Product URL <span class="required">*</span></label>
-                        <input type="url" id="productUrlInput" class="form-input" placeholder="https://www.amazon.in/dp/..." required />
-                        <span class="form-help">Direct Amazon product page URL (duplicate URLs will be rejected)</span>
+                        <label for="productStoreSelect" class="form-label">Store</label>
+                        <select id="productStoreSelect" class="form-input">
+                            <option value="AUTO">Auto-detect from URL</option>
+                            <option value="AMAZON">Amazon (amazon.in)</option>
+                            <option value="FLIPKART">Flipkart (flipkart.com)</option>
+                        </select>
+                        <span class="form-help">Supported stores: Amazon and Flipkart</span>
+                    </div>
+
+                    <div class="form-group">
+                        <label for="productUrlInput" class="form-label">Product URL (Amazon or Flipkart) <span class="required">*</span></label>
+                        <input type="url" id="productUrlInput" class="form-input" placeholder="https://www.amazon.in/dp/... or https://www.flipkart.com/..." required />
+                        <span class="form-help">Direct product page URL (duplicate URLs will be rejected)</span>
                     </div>
 
                     <div class="modal-action-row">
@@ -481,9 +513,18 @@
             <!-- MODE 2: Search by Name Mode -->
             <div id="modeNameSection" class="mode-section hidden">
                 <div class="form-group">
+                    <label for="searchStoreFilter" class="form-label">Search In Store</label>
+                    <select id="searchStoreFilter" class="form-input">
+                        <option value="all">Both Stores (Amazon &amp; Flipkart)</option>
+                        <option value="amazon">Amazon Only</option>
+                        <option value="flipkart">Flipkart Only</option>
+                    </select>
+                </div>
+
+                <div class="form-group">
                     <label for="searchByNameInput" class="form-label">Product Name / Keywords <span class="required">*</span></label>
                     <div class="input-action-group">
-                        <input type="text" id="searchByNameInput" class="form-input" placeholder="e.g. Amazon Basics HDMI Cable, Sony WH-1000XM5..." autocomplete="off" />
+                        <input type="text" id="searchByNameInput" class="form-input" placeholder="e.g. Wireless Mouse, HDMI Cable, Sony Headphones..." autocomplete="off" />
                         <button type="button" id="findProductByNameBtn" class="btn btn-primary btn-sm btn-inline-action">
                             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                                 <circle cx="11" cy="11" r="8"></circle>
@@ -492,7 +533,7 @@
                             <span id="findProductByNameText">Find Product</span>
                         </button>
                     </div>
-                    <span class="form-help">We'll search Amazon in real-time and let you choose the exact product.</span>
+                    <span class="form-help">Search real products across supported stores and select an item to monitor.</span>
                 </div>
             </div>
 
@@ -682,6 +723,65 @@
                 <span id="testApiBtnText">Test Connection</span>
             </button>
             <button id="saveApiSettingsBtn" class="btn btn-primary btn-sm">Save &amp; Connect</button>
+        </div>
+    </div>
+</div>
+
+<!-- Multi-Store Price Comparison Modal (Phase 9) -->
+<div id="comparisonModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="comparisonModalTitle">
+    <div class="modal-backdrop" id="comparisonModalBackdrop"></div>
+    <div class="modal-content smart-modal comparison-modal">
+        <div class="modal-header">
+            <div>
+                <h3 id="comparisonModalTitle" class="modal-title">Cross-Store Price Comparison</h3>
+                <p class="modal-subtitle">Compare real-time prices &amp; stock between Amazon and Flipkart</p>
+            </div>
+            <button id="closeComparisonModalBtn" class="btn btn-ghost btn-sm" aria-label="Close modal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <!-- Search bar for live product comparison -->
+            <div class="comparison-search-box">
+                <div class="input-action-group">
+                    <input type="text" id="comparisonQueryInput" class="form-input" placeholder="Search any product to compare across Amazon &amp; Flipkart (e.g. Wireless Mouse)..." autocomplete="off" />
+                    <button type="button" id="executeComparisonBtn" class="btn btn-primary btn-sm btn-inline-action">
+                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <line x1="18" y1="20" x2="18" y2="10"></line>
+                            <line x1="12" y1="20" x2="12" y2="4"></line>
+                            <line x1="6" y1="20" x2="6" y2="14"></line>
+                        </svg>
+                        <span id="executeComparisonText">Compare</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Loading Spinner -->
+            <div id="comparisonLoading" class="modal-loading hidden">
+                <div class="spinner"></div>
+                <span id="comparisonLoadingText">Fetching live comparison from Amazon and Flipkart...</span>
+            </div>
+
+            <!-- Live Search Comparison Section -->
+            <div id="liveComparisonSection" class="comparison-result-area hidden">
+                <h4 class="comparison-section-title">Live Cross-Store Results</h4>
+                <div id="liveComparisonResult"></div>
+            </div>
+
+            <!-- Monitored Tracked Comparisons Section -->
+            <div id="monitoredComparisonsSection" class="comparison-result-area">
+                <h4 class="comparison-section-title">Monitored Products Comparison</h4>
+                <div id="monitoredComparisonsList" class="comparison-groups-grid"></div>
+                <div id="monitoredComparisonsEmpty" class="empty-history hidden">
+                    <p>No active products currently tracked across multiple stores. Use the search bar above to compare any product live across Amazon and Flipkart.</p>
+                </div>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="closeComparisonFooterBtn" class="btn btn-secondary btn-sm">Close</button>
         </div>
     </div>
 </div>

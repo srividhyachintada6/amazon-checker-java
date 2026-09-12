@@ -121,4 +121,32 @@ public class DashboardControllerTest {
                 .andExpect(jsonPath("$.status").value("error"))
                 .andExpect(jsonPath("$.message").value("Product name is required"));
     }
+
+    @Test
+    @DisplayName("POST /api/products should support adding Flipkart and Amazon products with store detection")
+    void testAddMultiStoreProducts() throws Exception {
+        ProductRequest flipkartReq = new ProductRequest("Flipkart Mouse", "https://www.flipkart.com/p/itm12345", "FLIPKART");
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(flipkartReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Flipkart Mouse"))
+                .andExpect(jsonPath("$.store").value("FLIPKART"));
+
+        ProductRequest amazonReq = new ProductRequest("Amazon Mouse", "https://www.amazon.in/dp/B00MOUSE12");
+        mockMvc.perform(post("/api/products")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(amazonReq)))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.name").value("Amazon Mouse"))
+                .andExpect(jsonPath("$.store").value("AMAZON"));
+    }
+
+    @Test
+    @DisplayName("GET /api/comparison should return comparison list from monitored products")
+    void testGetComparison() throws Exception {
+        mockMvc.perform(get("/api/comparison"))
+                .andExpect(status().isOk())
+                .andExpect(content().contentType(MediaType.APPLICATION_JSON));
+    }
 }

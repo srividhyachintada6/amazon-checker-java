@@ -2,11 +2,20 @@ package com.amazonchecker.scheduler;
 
 import com.amazonchecker.Main;
 import com.amazonchecker.config.Settings;
+import com.amazonchecker.entity.ProductEntity;
+import com.amazonchecker.model.Store;
+import com.amazonchecker.scraper.ProductStoreScraper;
+import com.amazonchecker.scraper.StoreScraperFactory;
+import com.amazonchecker.web.ProductService;
+import com.amazonchecker.web.dto.ScrapeResult;
+import com.amazonchecker.web.dto.SearchResultResponse;
 import jakarta.annotation.PostConstruct;
 import jakarta.annotation.PreDestroy;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -17,20 +26,8 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
-import com.amazonchecker.entity.ProductEntity;
-import com.amazonchecker.scraper.ProductScraper;
-import com.amazonchecker.scraper.SearchScraper;
-import com.amazonchecker.tracker.AvailabilityTracker;
-import com.amazonchecker.tracker.PriceTracker;
-import com.amazonchecker.utils.Screenshot;
-import com.amazonchecker.web.ProductService;
-import org.jsoup.nodes.Document;
-import org.springframework.beans.factory.annotation.Autowired;
-
-import java.io.File;
-
 /**
- * Scheduled runner for periodic product availability and price checking.
+ * Scheduled runner for periodic product availability and price checking across stores.
  * Coordinates both automatic schedule executions and manual check triggers,
  * guaranteeing that two checks never execute concurrently.
  */
@@ -46,6 +43,9 @@ public class SchedulerRunner {
     @Autowired(required = false)
     private ProductService productService;
 
+    @Autowired(required = false)
+    private StoreScraperFactory storeScraperFactory;
+
     @Value("${checker.schedule.minutes:30}")
     private int intervalMinutes = 30;
 
@@ -59,8 +59,17 @@ public class SchedulerRunner {
         this.productService = productService;
     }
 
+    public SchedulerRunner(ProductService productService, StoreScraperFactory storeScraperFactory) {
+        this.productService = productService;
+        this.storeScraperFactory = storeScraperFactory;
+    }
+
     public void setProductService(ProductService productService) {
         this.productService = productService;
+    }
+
+    public void setStoreScraperFactory(StoreScraperFactory storeScraperFactory) {
+        this.storeScraperFactory = storeScraperFactory;
     }
 
     public void setIntervalMinutes(int intervalMinutes) {
@@ -81,7 +90,7 @@ public class SchedulerRunner {
         }
 
         running = true;
-        schedulerThread = new Thread(this::runSchedulerLoop, "amazon-scheduler-thread");
+        schedulerThread = new Thread(this::runSchedulerLoop, "multi-store-scheduler-thread");
         schedulerThread.setDaemon(true);
         schedulerThread.start();
         System.out.println("🚀 Automatic scheduler started. Configured interval: " + intervalMinutes + " minutes. Next check: " + getFormattedNextCheckTime());
@@ -122,7 +131,7 @@ public class SchedulerRunner {
     }
 
     /**
-     * Executes check with strict mutual exclusion.
+     * Executes check with strict mutual exclusion across all supported stores.
      * Prevents simultaneous runs between manual and scheduled tasks.
      * Checks active products from the database and updates monitoring results.
      */
@@ -133,7 +142,7 @@ public class SchedulerRunner {
         }
 
         try {
-            System.out.println("🔍 Starting " + triggerType + " Amazon product check...");
+            System.out.println("🔍 Starting " + triggerType + " multi-store product check...");
 
             if (productService != null) {
                 List<ProductEntity> products = productService.getActiveProducts();
@@ -143,43 +152,46 @@ public class SchedulerRunner {
                     try {
                         String name = product.getName();
                         String url = product.getUrl();
-                        System.out.println("\n🔍 Checking: " + name);
+                        Store store = product.getStore() != null ? product.getStore() : Store.AMAZON;
+                        System.out.println("\n🔍 Checking [" + store.getDisplayName() + "]: " + name);
 
-                        if (url == null || url.trim().isEmpty()) {
-                            url = SearchScraper.searchProduct(name);
-                            if (url == null) {
-                                System.out.println("❌ Product not found via search");
-                                productService.recordCheckResult(product, "Product Not Found", null, null);
-                                continue;
+                        // Resolve scraper for this product's store
+                        ProductStoreScraper scraper = null;
+                        if (storeScraperFactory != null) {
+                            try {
+                                scraper = storeScraperFactory.getScraper(store);
+                            } catch (Exception ignored) {}
+                        }
+
+                        // If URL is missing, search for product in the designated store
+                        if ((url == null || url.trim().isEmpty()) && storeScraperFactory != null) {
+                            List<SearchResultResponse> searchItems = storeScraperFactory.search(name, store.name().toLowerCase());
+                            if (!searchItems.isEmpty()) {
+                                url = searchItems.get(0).getUrl();
+                                product.setUrl(url);
                             }
                         }
 
-                        Document doc = ProductScraper.fetchProductPage(url);
-                        if (doc == null) {
-                            System.out.println("❌ Unable to fetch product page");
-                            productService.recordCheckResult(product, "Fetch Error", null, null);
+                        if (url == null || url.trim().isEmpty()) {
+                            System.out.println("❌ Product not found via search for store " + store);
+                            productService.recordCheckResult(product, "Product Not Found", null, null);
                             continue;
                         }
 
-                        String availability = AvailabilityTracker.getAvailability(doc);
-                        String price = PriceTracker.getPrice(doc);
-
-                        System.out.println("📦 Availability: " + availability);
-                        System.out.println("💰 Price: ₹" + price);
-
-                        String screenshotUrl = null;
-                        try {
-                            String screenshotPath = Screenshot.takeScreenshot(url, name);
-                            if (screenshotPath != null) {
-                                File sf = new File(screenshotPath);
-                                screenshotUrl = "/api/screenshots/" + sf.getName();
-                                System.out.println("📸 Screenshot saved: " + screenshotUrl);
+                        if (scraper != null) {
+                            ScrapeResult scrapeResult = scraper.checkProduct(url, name);
+                            if (scrapeResult.getScreenshotUrl() != null) {
+                                File sf = new File(scrapeResult.getScreenshotUrl());
+                                scrapeResult.setScreenshotUrl("/api/screenshots/" + sf.getName());
                             }
-                        } catch (Exception e) {
-                            System.out.println("⚠️  Screenshot skipped: " + e.getMessage());
-                        }
+                            System.out.println("📦 Availability: " + scrapeResult.getAvailability());
+                            System.out.println("💰 Price: " + (scrapeResult.getPrice() != null ? "₹" + scrapeResult.getPrice() : "Not found"));
 
-                        productService.recordCheckResult(product, availability, price, screenshotUrl);
+                            productService.recordCheckResult(product, scrapeResult);
+                        } else {
+                            System.out.println("❌ No scraper available for store: " + store);
+                            productService.recordCheckResult(product, "Unsupported Store", null, null);
+                        }
 
                     } catch (Exception e) {
                         System.err.println("❌ Error checking product " + product.getName() + ": " + e.getMessage());

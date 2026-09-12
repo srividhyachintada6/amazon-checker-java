@@ -1,12 +1,13 @@
 package com.amazonchecker.web.dto;
 
 /**
- * Global audit history log entry DTO.
+ * Global audit history log entry DTO with store identification.
  */
 public class HistoryEntryResponse {
 
     private String timestamp;
     private String productName;
+    private String store;
     private String status;
     private Double price;
     private String formattedPrice;
@@ -15,8 +16,13 @@ public class HistoryEntryResponse {
     }
 
     public HistoryEntryResponse(String timestamp, String productName, String status, Double price, String formattedPrice) {
+        this(timestamp, productName, "AMAZON", status, price, formattedPrice);
+    }
+
+    public HistoryEntryResponse(String timestamp, String productName, String store, String status, Double price, String formattedPrice) {
         this.timestamp = timestamp;
         this.productName = productName;
+        this.store = store != null ? store : "AMAZON";
         this.status = status;
         this.price = price;
         this.formattedPrice = formattedPrice;
@@ -36,6 +42,14 @@ public class HistoryEntryResponse {
 
     public void setProductName(String productName) {
         this.productName = productName;
+    }
+
+    public String getStore() {
+        return store;
+    }
+
+    public void setStore(String store) {
+        this.store = store;
     }
 
     public String getStatus() {

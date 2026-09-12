@@ -2,14 +2,14 @@ package com.amazonchecker.web;
 
 import com.amazonchecker.entity.MonitoringResultEntity;
 import com.amazonchecker.entity.ProductEntity;
+import com.amazonchecker.model.Store;
 import com.amazonchecker.repository.MonitoringResultRepository;
 import com.amazonchecker.repository.ProductRepository;
-import com.amazonchecker.scraper.SearchScraper;
+import com.amazonchecker.scraper.StoreScraperFactory;
 import com.amazonchecker.utils.CsvHandler;
 import com.amazonchecker.utils.LogWriter;
 import com.amazonchecker.utils.Product;
 import com.amazonchecker.web.dto.*;
-import jakarta.annotation.PostConstruct;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -33,10 +33,20 @@ public class ProductService {
 
     private final ProductRepository productRepository;
     private final MonitoringResultRepository monitoringResultRepository;
+    private final StoreScraperFactory storeScraperFactory;
 
-    public ProductService(ProductRepository productRepository, MonitoringResultRepository monitoringResultRepository) {
+    public ProductService(ProductRepository productRepository,
+                          MonitoringResultRepository monitoringResultRepository) {
+        this(productRepository, monitoringResultRepository, null);
+    }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    public ProductService(ProductRepository productRepository,
+                          MonitoringResultRepository monitoringResultRepository,
+                          @org.springframework.beans.factory.annotation.Autowired(required = false) StoreScraperFactory storeScraperFactory) {
         this.productRepository = productRepository;
         this.monitoringResultRepository = monitoringResultRepository;
+        this.storeScraperFactory = storeScraperFactory;
     }
 
     /**
@@ -71,7 +81,12 @@ public class ProductService {
         for (Product p : csvProducts) {
             if (p.getUrl() == null || p.getUrl().isBlank()) continue;
             try {
-                ProductEntity entity = new ProductEntity(p.getName(), p.getUrl().trim());
+                Store store = Store.fromString(p.getStore());
+                try {
+                    store = Store.fromUrl(p.getUrl());
+                } catch (Exception ignored) {}
+
+                ProductEntity entity = new ProductEntity(p.getName(), p.getUrl().trim(), store);
                 entity = productRepository.save(entity);
                 savedByName.put(p.getName().toLowerCase(), entity);
             } catch (Exception e) {
@@ -100,6 +115,7 @@ public class ProductService {
                             LocalDateTime checkedAt = parseTimestamp(tsStr);
                             monitoringResultRepository.save(new MonitoringResultEntity(
                                     entity,
+                                    entity.getStore() != null ? entity.getStore() : Store.AMAZON,
                                     checkedAt != null ? checkedAt : LocalDateTime.now(),
                                     price,
                                     status,
@@ -119,6 +135,10 @@ public class ProductService {
 
     public List<ProductEntity> getActiveProducts() {
         return productRepository.findByActiveTrue();
+    }
+
+    public List<ProductEntity> getActiveProductsByStore(Store store) {
+        return productRepository.findByActiveTrueAndStore(store);
     }
 
     public List<ProductResponse> getProducts() {
@@ -175,9 +195,12 @@ public class ProductService {
             }
         }
 
+        String storeName = product.getStore() != null ? product.getStore().name() : "AMAZON";
+
         return new ProductResponse(
                 String.valueOf(product.getId()),
                 product.getName(),
+                storeName,
                 status,
                 currentPrice,
                 previousPrice,
@@ -237,6 +260,18 @@ public class ProductService {
         }
         String validUrl = validateAndNormalizeUrl(request.getUrl());
 
+        // Detect or validate Store
+        Store store;
+        try {
+            store = Store.fromUrl(validUrl);
+        } catch (IllegalArgumentException e) {
+            if (request.getStore() != null && !request.getStore().isBlank()) {
+                store = Store.fromString(request.getStore());
+            } else {
+                throw e;
+            }
+        }
+
         // Check duplicate URL against database
         String normUrl = normalizeUrlForComparison(validUrl);
         List<ProductEntity> existingProducts = productRepository.findAll();
@@ -246,7 +281,7 @@ public class ProductService {
             }
         }
 
-        ProductEntity entity = new ProductEntity(name, validUrl);
+        ProductEntity entity = new ProductEntity(name, validUrl, store);
         entity = productRepository.save(entity);
 
         syncCsv();
@@ -254,6 +289,7 @@ public class ProductService {
         return new ProductResponse(
                 String.valueOf(entity.getId()),
                 entity.getName(),
+                entity.getStore().name(),
                 "NOT CHECKED",
                 null,
                 null,
@@ -287,8 +323,16 @@ public class ProductService {
             }
         }
 
+        Store store;
+        try {
+            store = Store.fromUrl(validUrl);
+        } catch (Exception e) {
+            store = entity.getStore() != null ? entity.getStore() : Store.AMAZON;
+        }
+
         entity.setName(name);
         entity.setUrl(validUrl);
+        entity.setStore(store);
         entity = productRepository.save(entity);
 
         syncCsv();
@@ -312,10 +356,39 @@ public class ProductService {
     }
 
     @Transactional
+    public void recordCheckResult(ProductEntity product, ScrapeResult result) {
+        if (product == null || result == null) return;
+
+        Store store = result.getStore() != null ? result.getStore() : (product.getStore() != null ? product.getStore() : Store.AMAZON);
+        MonitoringResultEntity entity = new MonitoringResultEntity(
+                product,
+                store,
+                result.getCheckedAt() != null ? result.getCheckedAt() : LocalDateTime.now(),
+                result.getPrice(),
+                result.getAvailability() != null ? result.getAvailability() : "UNKNOWN",
+                result.getStatusMessage(),
+                result.getScreenshotUrl()
+        );
+        monitoringResultRepository.save(entity);
+
+        if (result.getImageUrl() != null && !result.getImageUrl().isBlank()) {
+            product.setImageUrl(result.getImageUrl());
+        }
+        product.setUpdatedAt(LocalDateTime.now());
+        productRepository.save(product);
+
+        // Dual-log to availability_log.txt for backward compatibility
+        String priceStr = result.getPrice() != null ? String.valueOf(result.getPrice()) : "PRICE NOT FOUND";
+        LogWriter.logResult(product.getName(), result.getAvailability(), priceStr);
+    }
+
+    @Transactional
     public void recordCheckResult(ProductEntity product, String availability, String priceStr, String screenshotUrl) {
         Double price = parsePrice(priceStr);
+        Store store = product.getStore() != null ? product.getStore() : Store.AMAZON;
         MonitoringResultEntity result = new MonitoringResultEntity(
                 product,
+                store,
                 LocalDateTime.now(),
                 price,
                 availability != null ? availability : "UNKNOWN",
@@ -355,9 +428,11 @@ public class ProductService {
         List<HistoryEntryResponse> list = new ArrayList<>();
         for (MonitoringResultEntity r : results) {
             String priceStr = r.getPrice() != null ? "₹" + String.format(Locale.ENGLISH, "%,.2f", r.getPrice()) : "Price Not Available";
+            String storeName = r.getStore() != null ? r.getStore().name() : (r.getProduct() != null && r.getProduct().getStore() != null ? r.getProduct().getStore().name() : "AMAZON");
             list.add(new HistoryEntryResponse(
                     formatDateTime(r.getCheckedAt()),
                     r.getProduct() != null ? r.getProduct().getName() : "Unknown Product",
+                    storeName,
                     r.getAvailability(),
                     r.getPrice(),
                     priceStr
@@ -395,7 +470,8 @@ public class ProductService {
             List<ProductEntity> active = productRepository.findByActiveTrue();
             List<Product> csvList = new ArrayList<>();
             for (ProductEntity p : active) {
-                csvList.add(new Product(p.getName(), p.getUrl()));
+                String storeName = p.getStore() != null ? p.getStore().name() : "AMAZON";
+                csvList.add(new Product(p.getName(), p.getUrl(), storeName));
             }
             CsvHandler.writeProducts(csvList, CSV_FILE);
         } catch (Exception e) {
@@ -514,10 +590,139 @@ public class ProductService {
         }
     }
 
-    public List<SearchResultResponse> searchProducts(String query) {
+    /**
+     * Searches products across Amazon, Flipkart, or both using StoreScraperFactory.
+     */
+    public List<SearchResultResponse> searchProducts(String query, String storeFilter) {
         if (query == null || query.trim().isBlank()) {
             throw new IllegalArgumentException("Search query cannot be empty");
         }
-        return SearchScraper.searchProducts(query.trim());
+        if (storeScraperFactory == null) {
+            return Collections.emptyList();
+        }
+        return storeScraperFactory.search(query.trim(), storeFilter);
+    }
+
+    public List<SearchResultResponse> searchProducts(String query) {
+        return searchProducts(query, "all");
+    }
+
+    /**
+     * Cross-Store Price Comparison:
+     * Identifies products monitored across different stores with comparable titles,
+     * and computes Lowest Price, Highest Price, and Price Difference.
+     */
+    public List<PriceComparisonResponse> getMonitoredPriceComparisons() {
+        List<ProductResponse> all = getProducts();
+        List<PriceComparisonResponse> comparisons = new ArrayList<>();
+
+        // Group products by normalized name keywords
+        Map<String, List<ProductResponse>> groups = new LinkedHashMap<>();
+        for (ProductResponse p : all) {
+            String key = extractComparisonKey(p.getName());
+            groups.computeIfAbsent(key, k -> new ArrayList<>()).add(p);
+        }
+
+        for (Map.Entry<String, List<ProductResponse>> entry : groups.entrySet()) {
+            List<ProductResponse> group = entry.getValue();
+            // Check if group contains products from at least 2 distinct stores
+            Set<String> stores = new HashSet<>();
+            for (ProductResponse p : group) {
+                if (p.getStore() != null) stores.add(p.getStore().toUpperCase());
+            }
+
+            if (stores.size() >= 2) {
+                PriceComparisonResponse comp = new PriceComparisonResponse(entry.getKey());
+                for (ProductResponse p : group) {
+                    String formatted = p.getPrice() != null ? "₹" + String.format(Locale.US, "%,.2f", p.getPrice()) : "Not checked";
+                    comp.addItem(new PriceComparisonResponse.ComparedProductItem(
+                            p.getId(),
+                            p.getName(),
+                            p.getStore(),
+                            p.getPrice(),
+                            formatted,
+                            p.getStatus(),
+                            p.getProductUrl(),
+                            p.getScreenshot()
+                    ));
+                }
+                comparisons.add(comp);
+            }
+        }
+
+        return comparisons;
+    }
+
+    /**
+     * Live search-based cross-store price comparison.
+     * Searches Amazon and Flipkart for the given query, pairs top matching items,
+     * and returns the side-by-side price comparison.
+     */
+    public PriceComparisonResponse compareLivePrices(String query) {
+        if (query == null || query.trim().isBlank()) {
+            throw new IllegalArgumentException("Comparison query cannot be empty");
+        }
+
+        if (storeScraperFactory == null) {
+            return new PriceComparisonResponse(query.trim());
+        }
+
+        List<SearchResultResponse> searchResults = storeScraperFactory.search(query.trim(), "all");
+        PriceComparisonResponse comparison = new PriceComparisonResponse(query.trim());
+
+        // Find best candidate from Amazon and Flipkart
+        SearchResultResponse bestAmazon = null;
+        SearchResultResponse bestFlipkart = null;
+
+        for (SearchResultResponse r : searchResults) {
+            if ("AMAZON".equalsIgnoreCase(r.getStore()) && bestAmazon == null && r.getPrice() != null) {
+                bestAmazon = r;
+            } else if ("FLIPKART".equalsIgnoreCase(r.getStore()) && bestFlipkart == null && r.getPrice() != null) {
+                bestFlipkart = r;
+            }
+        }
+
+        if (bestAmazon != null) {
+            comparison.addItem(new PriceComparisonResponse.ComparedProductItem(
+                    "live-amazon",
+                    bestAmazon.getName(),
+                    "AMAZON",
+                    bestAmazon.getPrice(),
+                    bestAmazon.getFormattedPrice(),
+                    bestAmazon.getAvailability(),
+                    bestAmazon.getUrl(),
+                    bestAmazon.getImageUrl()
+            ));
+        }
+
+        if (bestFlipkart != null) {
+            comparison.addItem(new PriceComparisonResponse.ComparedProductItem(
+                    "live-flipkart",
+                    bestFlipkart.getName(),
+                    "FLIPKART",
+                    bestFlipkart.getPrice(),
+                    bestFlipkart.getFormattedPrice(),
+                    bestFlipkart.getAvailability(),
+                    bestFlipkart.getUrl(),
+                    bestFlipkart.getImageUrl()
+            ));
+        }
+
+        return comparison;
+    }
+
+    private String extractComparisonKey(String title) {
+        if (title == null) return "";
+        // Clean title to first 3-4 significant words
+        String cleaned = title.replaceAll("[^a-zA-Z0-9 ]", " ").toLowerCase();
+        String[] tokens = cleaned.split("\\s+");
+        List<String> keyTokens = new ArrayList<>();
+        for (String t : tokens) {
+            if (t.length() > 2 && !t.equals("the") && !t.equals("with") && !t.equals("and") && !t.equals("for")) {
+                keyTokens.add(t);
+                if (keyTokens.size() >= 3) break;
+            }
+        }
+        return keyTokens.isEmpty() ? title.trim() : String.join(" ", keyTokens);
     }
 }

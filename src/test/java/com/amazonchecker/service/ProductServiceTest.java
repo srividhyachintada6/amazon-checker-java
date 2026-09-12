@@ -147,4 +147,28 @@ public class ProductServiceTest {
         assertEquals("boat-rockerz-450", ProductService.generateId("boAt Rockerz 450!"));
         assertEquals("unknown", ProductService.generateId(null));
     }
+
+    @Test
+    @DisplayName("Should detect stores accurately from URLs and store names")
+    void testStoreDetection() {
+        assertEquals(com.amazonchecker.model.Store.AMAZON, com.amazonchecker.model.Store.fromUrl("https://www.amazon.in/dp/B012345678"));
+        assertEquals(com.amazonchecker.model.Store.AMAZON, com.amazonchecker.model.Store.fromUrl("https://amazon.com/product/xyz"));
+        assertEquals(com.amazonchecker.model.Store.FLIPKART, com.amazonchecker.model.Store.fromUrl("https://www.flipkart.com/item/p/itm123456"));
+        assertThrows(IllegalArgumentException.class, () -> com.amazonchecker.model.Store.fromUrl("https://example.com/unsupported"));
+
+        assertEquals(com.amazonchecker.model.Store.FLIPKART, com.amazonchecker.model.Store.fromString("FLIPKART"));
+        assertEquals(com.amazonchecker.model.Store.AMAZON, com.amazonchecker.model.Store.fromString("amazon"));
+        assertEquals(com.amazonchecker.model.Store.AMAZON, com.amazonchecker.model.Store.fromString(""));
+    }
+
+    @Test
+    @DisplayName("Should auto-detect Flipkart store when adding product with flipkart URL")
+    void testAddFlipkartProduct() throws IOException {
+        ProductRequest req = new ProductRequest("Flipkart Wireless Mouse", "https://www.flipkart.com/mouse/p/itm98765");
+        ProductResponse res = productService.addProduct(req);
+
+        assertNotNull(res.getId());
+        assertEquals("FLIPKART", res.getStore());
+        assertEquals("Flipkart Wireless Mouse", res.getName());
+    }
 }

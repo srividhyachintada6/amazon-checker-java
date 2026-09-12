@@ -7,6 +7,7 @@ public class ProductResponse {
 
     private String id;
     private String name;
+    private String store;
     private String status;
     private Double price;
     private Double previousPrice;
@@ -20,8 +21,14 @@ public class ProductResponse {
 
     public ProductResponse(String id, String name, String status, Double price, Double previousPrice,
                            Double priceChange, String lastChecked, String productUrl, String screenshot) {
+        this(id, name, "AMAZON", status, price, previousPrice, priceChange, lastChecked, productUrl, screenshot);
+    }
+
+    public ProductResponse(String id, String name, String store, String status, Double price, Double previousPrice,
+                           Double priceChange, String lastChecked, String productUrl, String screenshot) {
         this.id = id;
         this.name = name;
+        this.store = store;
         this.status = status;
         this.price = price;
         this.previousPrice = previousPrice;
@@ -45,6 +52,14 @@ public class ProductResponse {
 
     public void setName(String name) {
         this.name = name;
+    }
+
+    public String getStore() {
+        return store;
+    }
+
+    public void setStore(String store) {
+        this.store = store;
     }
 
     public String getStatus() {

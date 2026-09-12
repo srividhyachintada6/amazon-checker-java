@@ -1,7 +1,7 @@
 package com.amazonchecker.web.dto;
 
 /**
- * Data Transfer Object for real Amazon search results.
+ * Data Transfer Object for real product search results across stores.
  */
 public class SearchResultResponse {
 
@@ -11,17 +11,23 @@ public class SearchResultResponse {
     private String availability;
     private String url;
     private String imageUrl;
+    private String store;
 
     public SearchResultResponse() {
     }
 
     public SearchResultResponse(String name, Double price, String formattedPrice, String availability, String url, String imageUrl) {
+        this(name, price, formattedPrice, availability, url, imageUrl, "AMAZON");
+    }
+
+    public SearchResultResponse(String name, Double price, String formattedPrice, String availability, String url, String imageUrl, String store) {
         this.name = name;
         this.price = price;
         this.formattedPrice = formattedPrice;
         this.availability = availability;
         this.url = url;
         this.imageUrl = imageUrl;
+        this.store = store;
     }
 
     public String getName() {
@@ -70,5 +76,13 @@ public class SearchResultResponse {
 
     public void setImageUrl(String imageUrl) {
         this.imageUrl = imageUrl;
+    }
+
+    public String getStore() {
+        return store;
+    }
+
+    public void setStore(String store) {
+        this.store = store;
     }
 }

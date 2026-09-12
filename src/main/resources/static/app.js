@@ -167,9 +167,29 @@ const globalHistoryTableBody = document.getElementById("globalHistoryTableBody")
 const globalHistoryEmpty = document.getElementById("globalHistoryEmpty");
 const refreshHistoryBtn = document.getElementById("refreshHistoryBtn");
 
+// Phase 9 Multi-Store & Price Comparison Elements
+const storePills = document.querySelectorAll(".store-pill");
+const comparePricesBtn = document.getElementById("comparePricesBtn");
+const productStoreSelect = document.getElementById("productStoreSelect");
+const searchStoreFilter = document.getElementById("searchStoreFilter");
+const comparisonModal = document.getElementById("comparisonModal");
+const comparisonModalBackdrop = document.getElementById("comparisonModalBackdrop");
+const closeComparisonModalBtn = document.getElementById("closeComparisonModalBtn");
+const closeComparisonFooterBtn = document.getElementById("closeComparisonFooterBtn");
+const comparisonQueryInput = document.getElementById("comparisonQueryInput");
+const executeComparisonBtn = document.getElementById("executeComparisonBtn");
+const executeComparisonText = document.getElementById("executeComparisonText");
+const comparisonLoading = document.getElementById("comparisonLoading");
+const monitoredComparisonsSection = document.getElementById("monitoredComparisonsSection");
+const monitoredComparisonsList = document.getElementById("monitoredComparisonsList");
+const monitoredComparisonsEmpty = document.getElementById("monitoredComparisonsEmpty");
+const liveComparisonSection = document.getElementById("liveComparisonSection");
+const liveComparisonResult = document.getElementById("liveComparisonResult");
+
 // State
 let allProducts = [];
 let currentFilter = "all";
+let currentStoreFilter = "all";
 let searchQuery = "";
 let currentSort = "time-desc";
 let productPendingDelete = null;
@@ -427,6 +447,11 @@ function applyFiltersAndRender() {
         });
     }
 
+    // 2b. Filter by store (Phase 9)
+    if (currentStoreFilter && currentStoreFilter !== "all") {
+        filtered = filtered.filter(p => (p.store || "AMAZON").toUpperCase() === currentStoreFilter.toUpperCase());
+    }
+
     // 3. Filter by search query
     const q = (searchQuery || "").trim().toLowerCase();
     if (q) {
@@ -493,6 +518,10 @@ function renderProducts(products) {
         const hasScreenshot = Boolean(product.screenshot);
         const screenshotSrc = hasScreenshot ? getAssetUrl(product.screenshot) : null;
         const hasUrl = Boolean(product.productUrl && product.productUrl.trim() !== "");
+        const store = product.store || "AMAZON";
+        const isFlipkart = store.toUpperCase() === "FLIPKART";
+        const storeClass = isFlipkart ? "store-badge-flipkart" : "store-badge-amazon";
+        const storeLabel = isFlipkart ? "Flipkart" : "Amazon";
 
         // Price Change logic
         let priceDiffHtml = "";
@@ -537,6 +566,10 @@ function renderProducts(products) {
                     </button>
                 </div>
 
+                <div class="card-store-indicator">
+                    <span class="store-badge ${storeClass}">${escapeHtml(storeLabel)}</span>
+                </div>
+
                 ${hasScreenshot ? `
                     <img src="${escapeHtml(screenshotSrc)}" alt="${escapeHtml(product.name)}" loading="lazy"
                          onerror="this.style.display='none'; this.nextElementSibling.style.display='flex';" />
@@ -563,7 +596,9 @@ function renderProducts(products) {
 
             <div class="product-card-body">
                 <div class="product-card-header">
-                    <h3 class="product-title" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
+                    <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; width: 100%;">
+                        <h3 class="product-title" title="${escapeHtml(product.name)}">${escapeHtml(product.name)}</h3>
+                    </div>
                 </div>
 
                 <div class="product-metrics">
@@ -732,8 +767,17 @@ async function loadGlobalHistory() {
             const timeDisplay = formatDateTime(entry.timestamp);
             const priceDisplay = entry.formattedPrice ? entry.formattedPrice : formatPrice(entry.price);
 
+            const entryStore = (entry.store || "AMAZON").toUpperCase();
+            const storeBadgeClass = entryStore === "FLIPKART" ? "store-badge-flipkart" : "store-badge-amazon";
+            const storeName = entryStore === "FLIPKART" ? "Flipkart" : "Amazon";
+
             tr.innerHTML = `
-                <td><strong>${escapeHtml(entry.productName || "Unknown Product")}</strong></td>
+                <td>
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <span class="store-badge ${storeBadgeClass}">${escapeHtml(storeName)}</span>
+                        <strong>${escapeHtml(entry.productName || "Unknown Product")}</strong>
+                    </div>
+                </td>
                 <td><span class="badge ${badgeClass}">${emoji} ${escapeHtml(entry.status || "UNKNOWN")}</span></td>
                 <td><strong>${escapeHtml(priceDisplay)}</strong></td>
                 <td>${escapeHtml(timeDisplay)}</td>
@@ -820,6 +864,7 @@ function openAddProductModal() {
     if (imagePreviewBox) imagePreviewBox.classList.add("hidden");
     if (imageDropzone) imageDropzone.classList.remove("hidden");
     if (imageDetectedSection) imageDetectedSection.classList.add("hidden");
+    if (productStoreSelect) productStoreSelect.value = "AUTO";
 
     // Hide search results
     if (searchResultsArea) searchResultsArea.classList.add("hidden");
@@ -852,9 +897,10 @@ function openEditProductModal(id) {
     if (editProductId) editProductId.value = id;
     if (productNameInput) productNameInput.value = product.name || "";
     if (productUrlInput) productUrlInput.value = product.productUrl || "";
+    if (productStoreSelect) productStoreSelect.value = product.store || "AUTO";
 
     if (productModalTitle) productModalTitle.textContent = "Edit Product";
-    if (productModalSubtitle) productModalSubtitle.textContent = "Update product name or Amazon URL";
+    if (productModalSubtitle) productModalSubtitle.textContent = "Update product name or product URL";
     if (modalModeTabs) modalModeTabs.classList.add("hidden");
 
     // Show only link form
@@ -900,7 +946,8 @@ async function executeAmazonSearch(query, triggerBtn, triggerTextEl) {
     if (searchResultsCount) searchResultsCount.textContent = "Searching...";
 
     try {
-        const res = await fetch(apiUrl(`/api/products/search?query=${encodeURIComponent(q)}`));
+        const storeFilter = searchStoreFilter ? searchStoreFilter.value : "all";
+        const res = await fetch(apiUrl(`/api/products/search?query=${encodeURIComponent(q)}&store=${encodeURIComponent(storeFilter)}`));
         if (!res.ok) {
             let errorMsg = `Search failed (HTTP ${res.status})`;
             try {
@@ -923,8 +970,8 @@ async function executeAmazonSearch(query, triggerBtn, triggerTextEl) {
         }
 
     } catch (err) {
-        console.error("Amazon search error:", err);
-        showModalError(err.message || "Failed to search Amazon products");
+        console.error("Product search error:", err);
+        showModalError(err.message || "Failed to search products");
         if (searchResultsArea) searchResultsArea.classList.add("hidden");
     } finally {
         if (searchSpinner) searchSpinner.classList.add("hidden");
@@ -934,7 +981,7 @@ async function executeAmazonSearch(query, triggerBtn, triggerTextEl) {
 }
 
 /**
- * Render real Amazon search result items
+ * Render real multi-store search result items
  */
 function renderSearchResults(items) {
     if (!searchResultsList) return;
@@ -945,8 +992,12 @@ function renderSearchResults(items) {
         card.className = "search-result-card";
 
         const badgeClass = getBadgeClass(item.availability);
-        const priceDisplay = item.formattedPrice ? item.formattedPrice : (item.price ? '₹' + Number(item.price).toFixed(2) : 'Price on Amazon');
+        const priceDisplay = item.formattedPrice ? item.formattedPrice : (item.price ? '₹' + Number(item.price).toFixed(2) : 'Price unavailable');
         const hasImg = Boolean(item.imageUrl && item.imageUrl.trim() !== "");
+        const itemStore = (item.store || "AMAZON").toUpperCase();
+        const isFlipkart = itemStore === "FLIPKART";
+        const storeBadgeClass = isFlipkart ? "store-badge-flipkart" : "store-badge-amazon";
+        const storeLabel = isFlipkart ? "Flipkart" : "Amazon";
 
         card.innerHTML = `
             <div class="search-result-img-wrapper">
@@ -969,12 +1020,13 @@ function renderSearchResults(items) {
             <div class="search-result-info">
                 <h4 class="search-result-title" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
                 <div class="search-result-meta">
+                    <span class="store-badge ${storeBadgeClass}">${escapeHtml(storeLabel)}</span>
                     <span class="search-result-price">${escapeHtml(priceDisplay)}</span>
                     <span class="badge ${badgeClass}" style="font-size: 0.72rem; padding: 2px 8px;">${escapeHtml(item.availability || 'IN STOCK')}</span>
                 </div>
                 ${item.url ? `
                     <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="search-result-link">
-                        <span>View on Amazon</span>
+                        <span>View on ${escapeHtml(storeLabel)}</span>
                         <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
                     </a>
                 ` : ''}
@@ -1010,7 +1062,11 @@ async function selectSearchResult(index) {
         const res = await fetch(apiUrl("/api/products"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: item.name, url: item.url })
+            body: JSON.stringify({
+                name: item.name,
+                url: item.url,
+                store: item.store || "AMAZON"
+            })
         });
 
         if (!res.ok) {
@@ -1139,10 +1195,15 @@ async function handleProductFormSubmit(e) {
         const endpoint = isEdit ? `/api/products/${encodeURIComponent(id)}` : "/api/products";
         const method = isEdit ? "PUT" : "POST";
 
+        const payload = { name: name, url: url };
+        if (productStoreSelect && productStoreSelect.value && productStoreSelect.value !== "AUTO") {
+            payload.store = productStoreSelect.value;
+        }
+
         const res = await fetch(apiUrl(endpoint), {
             method: method,
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ name: name, url: url })
+            body: JSON.stringify(payload)
         });
 
         if (!res.ok) {
@@ -1772,6 +1833,187 @@ if (saveApiSettingsBtn) {
     saveApiSettingsBtn.addEventListener("click", handleSaveApiSettings);
 }
 
+// Phase 9: Store Filter Pills
+if (storePills && storePills.length > 0) {
+    storePills.forEach(pill => {
+        pill.addEventListener("click", () => {
+            storePills.forEach(p => {
+                p.classList.remove("active");
+                p.setAttribute("aria-selected", "false");
+            });
+            pill.classList.add("active");
+            pill.setAttribute("aria-selected", "true");
+            currentStoreFilter = pill.getAttribute("data-store") || "all";
+            applyFiltersAndRender();
+        });
+    });
+}
+
+// Phase 9: Cross-Store Price Comparison Functions
+function createComparisonCard(comp) {
+    const card = document.createElement("div");
+    card.className = "comparison-card";
+
+    let headerHtml = `
+        <div class="comparison-card-header">
+            <h4 class="comparison-product-title">${escapeHtml(comp.productName)}</h4>
+            ${comp.priceDifference && comp.priceDifference > 0 ? `
+                <span class="savings-badge">
+                    Save ₹${escapeHtml(comp.priceDifference.toFixed(2))}
+                </span>
+            ` : ""}
+        </div>
+    `;
+
+    let storesHtml = `<div class="comparison-stores-row">`;
+    if (Array.isArray(comp.stores)) {
+        comp.stores.forEach(item => {
+            const isLowest = item.lowest || (comp.lowestPriceStore && item.store === comp.lowestPriceStore && comp.lowestPrice === item.price);
+            const storeName = item.store === "FLIPKART" ? "Flipkart" : "Amazon";
+            const badgeClass = item.store === "FLIPKART" ? "store-badge-flipkart" : "store-badge-amazon";
+            const statusClass = getBadgeClass(item.status);
+            const formattedPrice = item.formattedPrice || (item.price !== null && item.price !== undefined ? formatPrice(item.price) : "Price not found");
+
+            storesHtml += `
+                <div class="comparison-store-item ${isLowest ? 'is-lowest' : ''}">
+                    <div class="comparison-store-header">
+                        <span class="store-badge ${badgeClass}">${escapeHtml(storeName)}</span>
+                        ${isLowest ? '<span class="lowest-tag">Lowest Price</span>' : ''}
+                    </div>
+                    <div class="comparison-store-price">${escapeHtml(formattedPrice)}</div>
+                    <div class="comparison-store-status">
+                        <span class="badge ${statusClass}">${escapeHtml(item.status || 'UNKNOWN')}</span>
+                    </div>
+                    ${item.productUrl ? `
+                        <a href="${escapeHtml(item.productUrl)}" target="_blank" rel="noopener noreferrer" class="btn btn-outline btn-sm" style="margin-top: 8px;">
+                            View on ${escapeHtml(storeName)}
+                        </a>
+                    ` : ''}
+                </div>
+            `;
+        });
+    }
+    storesHtml += `</div>`;
+
+    let diffSummary = "";
+    if (comp.priceDifference && comp.priceDifference > 0 && comp.lowestPriceStore && comp.highestPriceStore) {
+        const lowestName = comp.lowestPriceStore === "FLIPKART" ? "Flipkart" : "Amazon";
+        const highestName = comp.highestPriceStore === "FLIPKART" ? "Flipkart" : "Amazon";
+        diffSummary = `
+            <div class="comparison-difference-summary" style="margin-top: 10px; font-size: 0.85rem; color: var(--text-muted);">
+                <strong>${escapeHtml(lowestName)}</strong> is cheaper by <strong style="color: var(--success);">₹${escapeHtml(comp.priceDifference.toFixed(2))}</strong> compared to ${escapeHtml(highestName)}.
+            </div>
+        `;
+    }
+
+    card.innerHTML = headerHtml + storesHtml + diffSummary;
+    return card;
+}
+
+async function openPriceComparisonModal() {
+    if (!comparisonModal) return;
+    comparisonModal.classList.remove("hidden");
+
+    if (comparisonQueryInput) comparisonQueryInput.value = "";
+    if (liveComparisonSection) liveComparisonSection.classList.add("hidden");
+    if (liveComparisonResult) liveComparisonResult.innerHTML = "";
+
+    await loadMonitoredComparisons();
+}
+
+function closePriceComparisonModal() {
+    if (comparisonModal) comparisonModal.classList.add("hidden");
+}
+
+async function loadMonitoredComparisons() {
+    if (!monitoredComparisonsList) return;
+    monitoredComparisonsList.innerHTML = "";
+    if (comparisonLoading) comparisonLoading.classList.remove("hidden");
+    if (monitoredComparisonsEmpty) monitoredComparisonsEmpty.classList.add("hidden");
+
+    try {
+        const res = await fetch(apiUrl("/api/comparison"));
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const comps = await res.json();
+
+        if (!Array.isArray(comps) || comps.length === 0) {
+            if (monitoredComparisonsEmpty) monitoredComparisonsEmpty.classList.remove("hidden");
+            return;
+        }
+
+        comps.forEach(c => {
+            monitoredComparisonsList.appendChild(createComparisonCard(c));
+        });
+    } catch (e) {
+        console.error("Failed to load comparisons:", e);
+        if (monitoredComparisonsEmpty) {
+            monitoredComparisonsEmpty.innerHTML = `<p style="color: var(--danger);">Failed to load comparisons: ${escapeHtml(e.message)}</p>`;
+            monitoredComparisonsEmpty.classList.remove("hidden");
+        }
+    } finally {
+        if (comparisonLoading) comparisonLoading.classList.add("hidden");
+    }
+}
+
+async function executeLiveComparison() {
+    const q = comparisonQueryInput ? comparisonQueryInput.value.trim() : "";
+    if (!q) return;
+
+    if (executeComparisonBtn) executeComparisonBtn.disabled = true;
+    if (executeComparisonText) executeComparisonText.textContent = "Comparing...";
+    if (comparisonLoading) comparisonLoading.classList.remove("hidden");
+    if (liveComparisonSection) liveComparisonSection.classList.add("hidden");
+    if (liveComparisonResult) liveComparisonResult.innerHTML = "";
+
+    try {
+        const res = await fetch(apiUrl(`/api/comparison/live?query=${encodeURIComponent(q)}`));
+        if (!res.ok) {
+            throw new Error(`Comparison returned HTTP ${res.status}`);
+        }
+        const comp = await res.json();
+        if (comp && Array.isArray(comp.stores) && comp.stores.length > 0) {
+            liveComparisonResult.appendChild(createComparisonCard(comp));
+            liveComparisonSection.classList.remove("hidden");
+        } else {
+            liveComparisonResult.innerHTML = `<p class="empty-state-text" style="padding: 16px;">No comparable items found across stores for "${escapeHtml(q)}".</p>`;
+            liveComparisonSection.classList.remove("hidden");
+        }
+    } catch (e) {
+        console.error("Live comparison error:", e);
+        liveComparisonResult.innerHTML = `<p style="color: var(--danger); padding: 16px;">Failed to perform live comparison: ${escapeHtml(e.message)}</p>`;
+        liveComparisonSection.classList.remove("hidden");
+    } finally {
+        if (comparisonLoading) comparisonLoading.classList.add("hidden");
+        if (executeComparisonBtn) executeComparisonBtn.disabled = false;
+        if (executeComparisonText) executeComparisonText.textContent = "Compare";
+    }
+}
+
+// Comparison Modal Listeners
+if (comparePricesBtn) {
+    comparePricesBtn.addEventListener("click", openPriceComparisonModal);
+}
+if (closeComparisonModalBtn) {
+    closeComparisonModalBtn.addEventListener("click", closePriceComparisonModal);
+}
+if (closeComparisonFooterBtn) {
+    closeComparisonFooterBtn.addEventListener("click", closePriceComparisonModal);
+}
+if (comparisonModalBackdrop) {
+    comparisonModalBackdrop.addEventListener("click", closePriceComparisonModal);
+}
+if (executeComparisonBtn) {
+    executeComparisonBtn.addEventListener("click", executeLiveComparison);
+}
+if (comparisonQueryInput) {
+    comparisonQueryInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            executeLiveComparison();
+        }
+    });
+}
+
 // Global Escape Key to close any open modal
 window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -1786,6 +2028,9 @@ window.addEventListener("keydown", (e) => {
         }
         if (apiSettingsModal && !apiSettingsModal.classList.contains("hidden")) {
             closeApiSettingsModal();
+        }
+        if (comparisonModal && !comparisonModal.classList.contains("hidden")) {
+            closePriceComparisonModal();
         }
     }
 });

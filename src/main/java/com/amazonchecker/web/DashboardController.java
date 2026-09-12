@@ -45,11 +45,26 @@ public class DashboardController {
     }
 
     @GetMapping(value = "/products/search", produces = MediaType.APPLICATION_JSON_VALUE)
-    public List<SearchResultResponse> searchProducts(@RequestParam(value = "query", required = false) String query) {
+    public List<SearchResultResponse> searchProducts(
+            @RequestParam(value = "query", required = false) String query,
+            @RequestParam(value = "store", defaultValue = "all") String store) {
         if (query == null || query.trim().isBlank()) {
             throw new IllegalArgumentException("Search query cannot be empty");
         }
-        return productService.searchProducts(query);
+        return productService.searchProducts(query, store);
+    }
+
+    @GetMapping(value = "/comparison", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<PriceComparisonResponse> getPriceComparisons() {
+        return productService.getMonitoredPriceComparisons();
+    }
+
+    @GetMapping(value = "/comparison/live", produces = MediaType.APPLICATION_JSON_VALUE)
+    public PriceComparisonResponse getLiveComparison(@RequestParam("query") String query) {
+        if (query == null || query.trim().isBlank()) {
+            throw new IllegalArgumentException("Comparison query cannot be empty");
+        }
+        return productService.compareLivePrices(query);
     }
 
     @PostMapping(value = "/products", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)

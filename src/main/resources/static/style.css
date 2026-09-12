@@ -2221,3 +2221,222 @@ pre#results::-webkit-scrollbar-thumb:hover {
         margin-top: 8px;
     }
 }
+
+/* ===================================================================
+   Phase 9: Multi-Store Product Monitoring & Price Comparison Styles
+   =================================================================== */
+
+/* Store Filter Pills */
+.store-filter-pills {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background-color: var(--bg-subtle);
+    padding: 3px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+}
+
+.store-pill {
+    padding: 6px 12px;
+    border: none;
+    border-radius: var(--radius-full);
+    background: transparent;
+    color: var(--text-secondary);
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    white-space: nowrap;
+}
+
+.store-pill:hover {
+    color: var(--text-primary);
+}
+
+.store-pill.active {
+    background-color: #ffffff;
+    color: var(--text-primary);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.store-pill-amazon.active {
+    color: #e67a00;
+}
+
+.store-pill-flipkart.active {
+    color: #2874f0;
+}
+
+/* Store Badge on Product Cards */
+.store-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+}
+
+.store-badge-amazon {
+    background-color: #ff9900;
+    color: #111111;
+}
+
+.store-badge-flipkart {
+    background-color: #2874f0;
+    color: #ffffff;
+}
+
+/* Card Top Left: Store Badge + Action Icons */
+.card-store-indicator {
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    z-index: 5;
+}
+
+/* Price Comparison Modal */
+.comparison-modal {
+    max-width: 820px !important;
+}
+
+.comparison-search-box {
+    margin-bottom: 20px;
+}
+
+.comparison-section-title {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 16px 0 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.04em;
+}
+
+.comparison-card {
+    background: #ffffff;
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 16px;
+    box-shadow: var(--shadow-sm);
+    transition: box-shadow 0.2s ease;
+}
+
+.comparison-card:hover {
+    box-shadow: var(--shadow-md);
+}
+
+.comparison-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 14px;
+    padding-bottom: 10px;
+    border-bottom: 1px solid var(--border-color);
+}
+
+.comparison-card-title {
+    font-size: 1rem;
+    font-weight: 700;
+    color: var(--text-primary);
+    margin: 0;
+}
+
+.savings-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    background-color: #ecfdf5;
+    border: 1px solid #10b981;
+    color: #065f46;
+    padding: 4px 10px;
+    border-radius: var(--radius-full);
+    font-size: 0.8rem;
+    font-weight: 700;
+    white-space: nowrap;
+}
+
+.comparison-stores-row {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.comparison-store-item {
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-md);
+    padding: 12px;
+    background-color: var(--bg-subtle);
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    position: relative;
+    transition: border-color 0.2s ease;
+}
+
+.comparison-store-item.is-lowest {
+    border: 2px solid #10b981;
+    background-color: #f0fdf4;
+}
+
+.lowest-tag {
+    position: absolute;
+    top: -10px;
+    right: 12px;
+    background-color: #10b981;
+    color: #ffffff;
+    font-size: 0.68rem;
+    font-weight: 800;
+    padding: 2px 8px;
+    border-radius: 10px;
+    text-transform: uppercase;
+}
+
+.comparison-store-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.comparison-store-name {
+    font-size: 0.85rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.comparison-store-price {
+    font-size: 1.25rem;
+    font-weight: 800;
+    color: var(--text-primary);
+}
+
+.comparison-store-status {
+    font-size: 0.78rem;
+    font-weight: 600;
+}
+
+.comparison-store-link {
+    margin-top: auto;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 6px 10px;
+    border-radius: var(--radius-sm);
+    font-size: 0.78rem;
+    font-weight: 600;
+    text-decoration: none;
+    color: #ffffff;
+    background-color: var(--primary);
+    transition: opacity 0.2s ease;
+}
+
+.comparison-store-link:hover {
+    opacity: 0.9;
+}

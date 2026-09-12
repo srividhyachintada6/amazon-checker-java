@@ -1,15 +1,17 @@
 package com.amazonchecker.entity;
 
+import com.amazonchecker.model.Store;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 /**
- * JPA Entity representing a monitored Amazon product.
+ * JPA Entity representing a monitored product across supported stores (Amazon, Flipkart, etc.).
  */
 @Entity
 @Table(name = "products", indexes = {
         @Index(name = "idx_product_active", columnList = "active"),
-        @Index(name = "idx_product_url", columnList = "amazon_url")
+        @Index(name = "idx_product_url", columnList = "amazon_url"),
+        @Index(name = "idx_product_store", columnList = "store")
 })
 public class ProductEntity {
 
@@ -22,6 +24,10 @@ public class ProductEntity {
 
     @Column(name = "amazon_url", nullable = false, length = 2048, unique = true)
     private String url;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "store", nullable = false, length = 32, columnDefinition = "varchar(32) default 'AMAZON'")
+    private Store store = Store.AMAZON;
 
     @Column(name = "image_url", length = 2048)
     private String imageUrl;
@@ -41,12 +47,25 @@ public class ProductEntity {
     public ProductEntity(String name, String url) {
         this.name = name;
         this.url = url;
+        this.store = Store.AMAZON;
+        this.active = true;
+    }
+
+    public ProductEntity(String name, String url, Store store) {
+        this.name = name;
+        this.url = url;
+        this.store = store != null ? store : Store.AMAZON;
         this.active = true;
     }
 
     public ProductEntity(String name, String url, String imageUrl) {
+        this(name, url, Store.AMAZON, imageUrl);
+    }
+
+    public ProductEntity(String name, String url, Store store, String imageUrl) {
         this.name = name;
         this.url = url;
+        this.store = store != null ? store : Store.AMAZON;
         this.imageUrl = imageUrl;
         this.active = true;
     }
@@ -59,6 +78,13 @@ public class ProductEntity {
         }
         if (updatedAt == null) {
             updatedAt = now;
+        }
+        if (store == null) {
+            try {
+                store = Store.fromUrl(url);
+            } catch (Exception e) {
+                store = Store.AMAZON;
+            }
         }
     }
 
@@ -89,6 +115,14 @@ public class ProductEntity {
 
     public void setUrl(String url) {
         this.url = url;
+    }
+
+    public Store getStore() {
+        return store;
+    }
+
+    public void setStore(Store store) {
+        this.store = store;
     }
 
     public String getImageUrl() {

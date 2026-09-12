@@ -76,6 +76,7 @@ public class DatabaseConfig {
                 ds.setUsername(user != null ? user : "postgres");
                 ds.setPassword(pass != null ? pass : "");
                 ds.setMaximumPoolSize(10);
+                applySchemaMigrations(ds);
                 return ds;
 
             } catch (Exception e) {
@@ -92,6 +93,7 @@ public class DatabaseConfig {
             ds.setUsername(user != null ? user : "postgres");
             ds.setPassword(pass != null ? pass : "");
             ds.setMaximumPoolSize(10);
+            applySchemaMigrations(ds);
             return ds;
         }
 
@@ -109,7 +111,20 @@ public class DatabaseConfig {
         ds.setUsername(localUser);
         ds.setPassword(localPass);
         ds.setMaximumPoolSize(5);
+        applySchemaMigrations(ds);
         return ds;
+    }
+
+    private void applySchemaMigrations(DataSource ds) {
+        try (java.sql.Connection conn = ds.getConnection();
+             java.sql.Statement stmt = conn.createStatement()) {
+            try {
+                stmt.execute("ALTER TABLE products ADD COLUMN IF NOT EXISTS store VARCHAR(32) DEFAULT 'AMAZON' NOT NULL");
+            } catch (Exception ignored) {}
+            try {
+                stmt.execute("ALTER TABLE monitoring_results ADD COLUMN IF NOT EXISTS store VARCHAR(32) DEFAULT 'AMAZON' NOT NULL");
+            } catch (Exception ignored) {}
+        } catch (Exception ignored) {}
     }
 
     @Bean

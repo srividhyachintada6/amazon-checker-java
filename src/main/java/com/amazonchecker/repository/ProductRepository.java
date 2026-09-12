@@ -16,6 +16,8 @@ public interface ProductRepository extends JpaRepository<ProductEntity, Long> {
 
     List<ProductEntity> findByActiveTrue();
 
+    List<ProductEntity> findByActiveTrueAndStore(com.amazonchecker.model.Store store);
+
     Optional<ProductEntity> findByUrl(String url);
 
     Optional<ProductEntity> findByNameIgnoreCase(String name);

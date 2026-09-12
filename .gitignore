@@ -2,3 +2,17 @@ target/
 *.class
 .idea/
 .vscode/
+
+# Environment and credentials
+.env
+.env.*
+*.env
+
+# Local database files
+data/*.db
+data/*.mv.db
+data/*.trace.db
+
+# System and logs
+*.log
+.DS_Store

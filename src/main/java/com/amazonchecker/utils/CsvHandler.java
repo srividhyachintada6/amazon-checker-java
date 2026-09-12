@@ -23,14 +23,31 @@ public class CsvHandler {
             while ((line = reader.readLine()) != null) {
                 if (line.isBlank()) continue;
 
-                // product_url may itself contain commas (query params), so split only on the first comma
-                int firstComma = line.indexOf(',');
-                if (firstComma == -1) continue;
+                String trimmed = line.trim();
+                // Product URLs always begin with http:// or https://
+                int httpIndex = trimmed.indexOf("https://");
+                if (httpIndex == -1) {
+                    httpIndex = trimmed.indexOf("http://");
+                }
 
-                String name = line.substring(0, firstComma).trim();
-                String url = line.substring(firstComma + 1).trim();
-
-                products.add(new Product(name, url));
+                if (httpIndex > 0) {
+                    String url = trimmed.substring(httpIndex).trim();
+                    String namePart = trimmed.substring(0, httpIndex).trim();
+                    if (namePart.endsWith(",")) {
+                        namePart = namePart.substring(0, namePart.length() - 1).trim();
+                    }
+                    if (namePart.startsWith("\"") && namePart.endsWith("\"") && namePart.length() >= 2) {
+                        namePart = namePart.substring(1, namePart.length() - 1).replace("\"\"", "\"").trim();
+                    }
+                    products.add(new Product(namePart, url));
+                } else {
+                    int firstComma = trimmed.indexOf(',');
+                    if (firstComma != -1) {
+                        String name = trimmed.substring(0, firstComma).trim();
+                        String url = trimmed.substring(firstComma + 1).trim();
+                        products.add(new Product(name, url));
+                    }
+                }
             }
         }
         return products;
@@ -41,7 +58,11 @@ public class CsvHandler {
             writer.write("product_name,product_url");
             writer.newLine();
             for (Product p : products) {
-                writer.write(p.getName() + "," + p.getUrl());
+                String name = p.getName();
+                if (name.contains(",") || name.contains("\"")) {
+                    name = "\"" + name.replace("\"", "\"\"") + "\"";
+                }
+                writer.write(name + "," + p.getUrl());
                 writer.newLine();
             }
         }

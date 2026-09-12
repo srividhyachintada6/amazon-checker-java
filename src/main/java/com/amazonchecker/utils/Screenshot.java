@@ -25,6 +25,9 @@ public class Screenshot {
 
         ChromeOptions options = new ChromeOptions();
         options.addArguments("--headless=new");
+        options.addArguments("--no-sandbox");
+        options.addArguments("--disable-dev-shm-usage");
+        options.addArguments("--disable-gpu");
         options.addArguments("--window-size=1920,1080");
 
         ChromeDriver driver = new ChromeDriver(options);
@@ -38,7 +41,8 @@ public class Screenshot {
             }
 
             String timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"));
-            String filename = "screenshots/" + productName.replace(" ", "_") + "_" + timestamp + ".png";
+            String safeName = productName.replaceAll("[^a-zA-Z0-9_-]", "_");
+            String filename = "screenshots/" + safeName + "_" + timestamp + ".png";
 
             File srcFile = driver.getScreenshotAs(OutputType.FILE);
             Files.copy(srcFile.toPath(), Path.of(filename));

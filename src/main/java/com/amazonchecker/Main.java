@@ -29,38 +29,42 @@ public class Main {
         }
 
         for (Product product : products) {
-            String name = product.getName();
-            String url = product.getUrl();
+            try {
+                String name = product.getName();
+                String url = product.getUrl();
 
-            System.out.println("\n🔍 Checking: " + name);
+                System.out.println("\n🔍 Checking: " + name);
 
-            if (!product.hasUrl()) {
-                url = SearchScraper.searchProduct(name);
-                if (url == null) {
-                    System.out.println("❌ Product not found via search");
+                if (!product.hasUrl()) {
+                    url = SearchScraper.searchProduct(name);
+                    if (url == null) {
+                        System.out.println("❌ Product not found via search");
+                        continue;
+                    }
+                }
+
+                Document doc = ProductScraper.fetchProductPage(url);
+                if (doc == null) {
+                    System.out.println("❌ Unable to fetch product page");
                     continue;
                 }
-            }
 
-            Document doc = ProductScraper.fetchProductPage(url);
-            if (doc == null) {
-                System.out.println("❌ Unable to fetch product page");
-                continue;
-            }
+                String availability = AvailabilityTracker.getAvailability(doc);
+                String price = PriceTracker.getPrice(doc);
 
-            String availability = AvailabilityTracker.getAvailability(doc);
-            String price = PriceTracker.getPrice(doc);
+                System.out.println("📦 Availability: " + availability);
+                System.out.println("💰 Price: ₹" + price);
 
-            System.out.println("📦 Availability: " + availability);
-            System.out.println("💰 Price: ₹" + price);
+                LogWriter.logResult(name, availability, price);
 
-            LogWriter.logResult(name, availability, price);
-
-            try {
-                String screenshot = Screenshot.takeScreenshot(url, name);
-                System.out.println("📸 Screenshot saved: " + screenshot);
+                try {
+                    String screenshot = Screenshot.takeScreenshot(url, name);
+                    System.out.println("📸 Screenshot saved: " + screenshot);
+                } catch (Exception e) {
+                    System.out.println("⚠️  Screenshot skipped: " + e.getMessage());
+                }
             } catch (Exception e) {
-                System.out.println("⚠️  Screenshot skipped: " + e.getMessage());
+                System.err.println("❌ Error checking product: " + e.getMessage());
             }
         }
     }

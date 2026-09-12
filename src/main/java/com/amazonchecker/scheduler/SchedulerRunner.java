@@ -17,6 +17,18 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.atomic.AtomicBoolean;
 
+import com.amazonchecker.entity.ProductEntity;
+import com.amazonchecker.scraper.ProductScraper;
+import com.amazonchecker.scraper.SearchScraper;
+import com.amazonchecker.tracker.AvailabilityTracker;
+import com.amazonchecker.tracker.PriceTracker;
+import com.amazonchecker.utils.Screenshot;
+import com.amazonchecker.web.ProductService;
+import org.jsoup.nodes.Document;
+import org.springframework.beans.factory.annotation.Autowired;
+
+import java.io.File;
+
 /**
  * Scheduled runner for periodic product availability and price checking.
  * Coordinates both automatic schedule executions and manual check triggers,
@@ -31,11 +43,33 @@ public class SchedulerRunner {
     private volatile LocalDateTime lastCheckTime = null;
     private volatile LocalDateTime nextCheckTime = null;
 
+    @Autowired(required = false)
+    private ProductService productService;
+
     @Value("${checker.schedule.minutes:30}")
     private int intervalMinutes = 30;
 
     @Value("${checker.schedule.enabled:true}")
     private boolean enabled = true;
+
+    public SchedulerRunner() {
+    }
+
+    public SchedulerRunner(ProductService productService) {
+        this.productService = productService;
+    }
+
+    public void setProductService(ProductService productService) {
+        this.productService = productService;
+    }
+
+    public void setIntervalMinutes(int intervalMinutes) {
+        this.intervalMinutes = intervalMinutes;
+    }
+
+    public void setEnabled(boolean enabled) {
+        this.enabled = enabled;
+    }
 
     @PostConstruct
     public void start() {
@@ -90,6 +124,7 @@ public class SchedulerRunner {
     /**
      * Executes check with strict mutual exclusion.
      * Prevents simultaneous runs between manual and scheduled tasks.
+     * Checks active products from the database and updates monitoring results.
      */
     public boolean executeCheck(String triggerType) {
         if (!checking.compareAndSet(false, true)) {
@@ -99,7 +134,66 @@ public class SchedulerRunner {
 
         try {
             System.out.println("🔍 Starting " + triggerType + " Amazon product check...");
-            Main.run();
+
+            if (productService != null) {
+                List<ProductEntity> products = productService.getActiveProducts();
+                System.out.println("📋 Found " + products.size() + " active products to check in database.");
+
+                for (ProductEntity product : products) {
+                    try {
+                        String name = product.getName();
+                        String url = product.getUrl();
+                        System.out.println("\n🔍 Checking: " + name);
+
+                        if (url == null || url.trim().isEmpty()) {
+                            url = SearchScraper.searchProduct(name);
+                            if (url == null) {
+                                System.out.println("❌ Product not found via search");
+                                productService.recordCheckResult(product, "Product Not Found", null, null);
+                                continue;
+                            }
+                        }
+
+                        Document doc = ProductScraper.fetchProductPage(url);
+                        if (doc == null) {
+                            System.out.println("❌ Unable to fetch product page");
+                            productService.recordCheckResult(product, "Fetch Error", null, null);
+                            continue;
+                        }
+
+                        String availability = AvailabilityTracker.getAvailability(doc);
+                        String price = PriceTracker.getPrice(doc);
+
+                        System.out.println("📦 Availability: " + availability);
+                        System.out.println("💰 Price: ₹" + price);
+
+                        String screenshotUrl = null;
+                        try {
+                            String screenshotPath = Screenshot.takeScreenshot(url, name);
+                            if (screenshotPath != null) {
+                                File sf = new File(screenshotPath);
+                                screenshotUrl = "/api/screenshots/" + sf.getName();
+                                System.out.println("📸 Screenshot saved: " + screenshotUrl);
+                            }
+                        } catch (Exception e) {
+                            System.out.println("⚠️  Screenshot skipped: " + e.getMessage());
+                        }
+
+                        productService.recordCheckResult(product, availability, price, screenshotUrl);
+
+                    } catch (Exception e) {
+                        System.err.println("❌ Error checking product " + product.getName() + ": " + e.getMessage());
+                        try {
+                            productService.recordCheckResult(product, "Error: " + e.getMessage(), null, null);
+                        } catch (Exception ignored) {
+                        }
+                    }
+                }
+            } else {
+                // Fallback for standalone/legacy mode
+                Main.run();
+            }
+
             lastCheckTime = LocalDateTime.now();
             nextCheckTime = lastCheckTime.plusMinutes(intervalMinutes);
             System.out.println("✅ " + triggerType + " check finished. Next scheduled check at: " + getFormattedNextCheckTime());

@@ -95,6 +95,14 @@ public class ProductResponse {
         this.productUrl = productUrl;
     }
 
+    public String getUrl() {
+        return productUrl;
+    }
+
+    public void setUrl(String url) {
+        this.productUrl = url;
+    }
+
     public String getScreenshot() {
         return screenshot;
     }

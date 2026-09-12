@@ -77,11 +77,13 @@ This project delivers an automated solution that monitors targeted products in t
 |---|---|
 | **Core Language** | Java 17+ (LTS) |
 | **Build & Packaging** | Apache Maven, `maven-shade-plugin` (Uber JAR) |
-| **Backend Framework** | Spring Boot 3.3.0 (`spring-boot-starter-web`) |
+| **Backend Framework** | Spring Boot 3.3.0 (`spring-boot-starter-web`, `spring-boot-starter-data-jpa`) |
+| **Database & Persistence**| PostgreSQL (Production) / H2 (Local file fallback), Hibernate 6 |
 | **Scraping & HTML Parsing** | Jsoup 1.17.2 |
 | **Browser Automation** | Selenium WebDriver 4.21.0, WebDriverManager 5.8.0 |
 | **Frontend** | Semantic HTML5, Modern CSS3 (CSS Variables, Flexbox, CSS Grid), Vanilla JavaScript (ES6+) |
-| **Data Persistence** | Flat-file CSV (`data/products.csv`) and text audit log (`data/availability_log.txt`) |
+| **Frontend Cloud Hosting** | Vercel (`vercel.json` static CDN with optional proxy rewrites) |
+| **Backend Cloud Hosting** | Render, Railway, AWS ECS, or Docker containers |
 
 ---
 
@@ -93,20 +95,22 @@ This project delivers an automated solution that monitors targeted products in t
 |  - 6 KPI Analytics Cards        - Search, Filter & Sort Toolbar               |
 |  - Product Cards with Actions   - Modals: Add, Edit, Delete, Price History    |
 |  - Real-Time Status & Countdown - Global Monitoring Activity Audit Table      |
+|  - Cloud Backend Config Modal   - Automatic API URL Switcher                  |
 +---------------------------------------+---------------------------------------+
-                                        | (REST JSON & Static Assets)
+                                        | (Static Assets: Vercel CDN)
+                                        | (REST JSON via HTTPS)
                                         v
 +-------------------------------------------------------------------------------+
 |                       SPRING BOOT REST CONTROLLER & SERVICE                   |
-|                   (/api/products, /api/summary, /api/status, ...)              |
+|       (/api/products, /api/summary, /api/status, /api/health, ...)            |
 +-------------------+---------------------------------------+-------------------+
                     |                                       |
                     v                                       v
 +---------------------------------------+   +-----------------------------------+
-|            SCHEDULER RUNNER           |   |       DATA PERSISTENCE LAYER      |
-|  - Background periodic checking       |   |  - data/products.csv              |
-|  - Configurable interval (properties) |   |  - data/availability_log.txt      |
-|  - On-demand manual trigger           |   |  - screenshots/                   |
+|            SCHEDULER RUNNER           |   |       PERSISTENCE LAYER (JPA)     |
+|  - Background periodic checking       |   |  - PostgreSQL (Production)        |
+|  - Configurable interval (env vars)   |   |  - H2 Database (Local Dev)        |
+|  - On-demand manual trigger           |   |  - Dual-write CSV backup log      |
 +-------------------+-------------------+   +-----------------------------------+
                     |
                     v
@@ -114,7 +118,7 @@ This project delivers an automated solution that monitors targeted products in t
 |                           SCRAPING & TRACKING ENGINE                          |
 |  - ProductScraper (Jsoup HTTP GET + Desktop Headers + Fallback Selectors)    |
 |  - PriceTracker & AvailabilityTracker (Stock & Price Regex Normalization)     |
-|  - Screenshot Service (Selenium WebDriver + Headless Chrome)                 |
+|  - Screenshot Service (Selenium WebDriver + Headless Chrome --no-sandbox)     |
 +-------------------------------------------------------------------------------+
                                         |
                                         v
@@ -178,23 +182,18 @@ amazon-checker-java/
 
 ---
 
-## ⚙️ Configuration
+## ⚙️ Configuration & Environment Variables
 
-Application settings can be configured via `src/main/resources/application.properties`:
+Application settings can be configured via environment variables or `src/main/resources/application.properties`. See `.env.example` for all configurable keys.
 
-```properties
-# Server Port
-server.port=8080
-
-# Automatic Product Monitoring Schedule (in minutes)
-checker.schedule.minutes=30
-
-# Spring Web Configuration
-spring.application.name=amazon-availability-checker
-```
-
-* **`checker.schedule.minutes`**: Defines how often background checks run automatically (default: 30 minutes).
-* **`server.port`**: Defines the HTTP port for the web dashboard (default: 8080).
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | `8080` | HTTP port used by the Spring Boot server (dynamic on cloud platforms) |
+| `DATABASE_URL` | `jdbc:h2:file:./data/amazon_checker_db...` | JDBC URL for PostgreSQL (Production) or H2 (Local file) |
+| `DATABASE_USERNAME` | `sa` | Database username |
+| `DATABASE_PASSWORD` | *(empty)* | Database password |
+| `FRONTEND_URL` | `http://localhost:3000,http://localhost:8080,https://*.vercel.app` | Comma-separated allowed CORS origins |
+| `CHECKER_SCHEDULE_MINUTES` | `30` | Background monitoring interval in minutes |
 
 ---
 
@@ -202,10 +201,11 @@ spring.application.name=amazon-availability-checker
 
 | Method | Endpoint | Description | Sample Response / Status |
 |---|---|---|---|
+| `GET` | `/api/health` | Service health, database status, and scheduler metrics | `200 OK` (`{ "status": "UP", "database": "CONNECTED", ... }`) |
 | `GET` | `/api/summary` | Returns 6 KPI summary metrics | `{ "totalProducts": 3, "inStock": 2, "outOfStock": 0, "errors": 1, "priceDrops": 1, ... }` |
 | `GET` | `/api/products` | Returns all active monitored products with status & prices | `200 OK` (JSON array of products) |
 | `GET` | `/api/products/search` | Live search for Amazon products by name or keywords | `200 OK` (JSON array of Amazon search items) |
-| `POST` | `/api/products` | Adds a new product to monitoring and `products.csv` | `201 Created` / `400 Bad Request` / `409 Conflict` |
+| `POST` | `/api/products` | Adds a new product to monitoring and persistent database | `201 Created` / `400 Bad Request` / `409 Conflict` |
 | `PUT` | `/api/products/{id}` | Updates an existing product's name or URL | `200 OK` / `400 Bad Request` / `404 Not Found` |
 | `DELETE` | `/api/products/{id}` | Removes a product from active monitoring | `200 OK` (`{ "status": "success", ... }`) |
 | `GET` | `/api/history?limit=25` | Returns chronological global monitoring audit entries | `200 OK` (JSON array of recent checks) |
@@ -213,7 +213,64 @@ spring.application.name=amazon-availability-checker
 | `GET` | `/api/status` | Returns scheduler health and countdown timers | `{ "status": "automatic monitoring", "checking": false, ... }` |
 | `POST` | `/api/check` | Triggers an immediate manual product check | `200 OK` (`{ "status": "started", ... }`) |
 | `GET` | `/api/screenshots/{filename}` | Securely streams a captured screenshot image | `200 OK` (`image/png` or `image/jpeg`) |
-| `GET` | `/api/log` | Returns the raw text from `data/availability_log.txt` | `200 OK` (`text/plain`) |
+| `GET` | `/api/log` | Returns the raw text audit log | `200 OK` (`text/plain`) |
+
+---
+
+## 🌐 Cloud Deployment Guide
+
+The application separates the frontend and backend architectures:
+* **Frontend (Vercel)**: Static CDN hosting for instant global loading and zero server cost.
+* **Backend (Render / Railway / AWS / Docker)**: Full Spring Boot runtime with Java 17+, Jsoup, Selenium WebDriver, and Chrome headless.
+* **Database (PostgreSQL / Neon / Supabase)**: Scalable relational database for persistent products and audit logs.
+
+### 1. Deploy Frontend to Vercel
+
+The repository includes `vercel.json` preconfigured to serve `src/main/resources/static`.
+
+#### Option A: Vercel CLI
+```bash
+# Install Vercel CLI (if needed)
+npm install -g vercel
+
+# Deploy directly from repository root
+vercel
+```
+
+#### Option B: Vercel Dashboard (Git Integration)
+1. Push your code to GitHub / GitLab / Bitbucket.
+2. In Vercel, click **Add New Project** and import the repository.
+3. Configure the build settings:
+   * **Framework Preset**: Other
+   * **Root Directory**: `./` (leave default)
+   * **Output Directory**: `src/main/resources/static`
+4. Click **Deploy**.
+5. Once deployed, open your Vercel URL, click the **⚙ API Settings** button in the header, enter your deployed Spring Boot backend URL (e.g. `https://your-backend.onrender.com`), and click **Test Connection** & **Save**.
+
+### 2. Deploy Backend to Cloud (Render / Railway / Docker)
+
+Because Selenium WebDriver requires Google Chrome and background threads, the backend should be deployed to a container or VM host (e.g., Render Web Service, Railway, or AWS ECS):
+
+#### Deploying on Render:
+1. Create a **New Web Service** connected to your repository.
+2. Configure build & runtime:
+   * **Environment**: Java / Docker
+   * **Build Command**: `mvn clean package -DskipTests`
+   * **Start Command**: `java -jar target/amazon-availability-checker.jar`
+3. Add Environment Variables in the Render dashboard:
+   * `PORT`: `8080` (or leave default, Render sets this automatically)
+   * `DATABASE_URL`: `jdbc:postgresql://<host>:<port>/<dbname>?sslmode=require`
+   * `DATABASE_USERNAME`: `<db_user>`
+   * `DATABASE_PASSWORD`: `<db_password>`
+   * `FRONTEND_URL`: `https://your-app.vercel.app`
+   * `CHECKER_SCHEDULE_MINUTES`: `30`
+4. Verify health at `https://your-backend.onrender.com/api/health`.
+
+### 3. Provisioning Managed PostgreSQL (Free Tiers Available)
+You can use any PostgreSQL provider such as **Neon.tech**, **Supabase**, or **Render PostgreSQL**:
+1. Create a new PostgreSQL database.
+2. Copy the JDBC connection URL.
+3. Supply `DATABASE_URL`, `DATABASE_USERNAME`, and `DATABASE_PASSWORD` to your backend environment variables. Hibernate will automatically create the tables on startup (`spring.jpa.hibernate.ddl-auto=update`).
 
 ---
 

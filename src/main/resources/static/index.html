@@ -26,9 +26,18 @@
             </div>
         </div>
 
-        <div id="status" class="status ready">
-            <span class="status-indicator"></span>
-            <span id="statusText">Ready</span>
+        <div class="header-actions">
+            <button id="apiConfigBtn" class="btn btn-api-config" title="Configure Cloud Backend API URL">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="3"></circle>
+                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+                </svg>
+                <span id="apiEndpointBadge">API: Local</span>
+            </button>
+            <div id="status" class="status ready">
+                <span class="status-indicator"></span>
+                <span id="statusText">Ready</span>
+            </div>
         </div>
     </div>
 </header>
@@ -630,6 +639,49 @@
         </div>
         <div class="modal-footer">
             <button id="closeModalFooterButton" class="btn btn-secondary btn-sm">Close</button>
+        </div>
+    </div>
+</div>
+
+<!-- Cloud API Settings Modal (Phase 8) -->
+<div id="apiSettingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="apiSettingsModalTitle">
+    <div class="modal-backdrop" id="apiSettingsModalBackdrop"></div>
+    <div class="modal-content">
+        <div class="modal-header">
+            <div>
+                <h3 id="apiSettingsModalTitle" class="modal-title">Cloud Backend Settings</h3>
+                <p class="modal-subtitle">Connect your Vercel frontend to the Spring Boot REST API</p>
+            </div>
+            <button id="closeApiSettingsModalBtn" class="btn btn-ghost btn-sm" aria-label="Close modal">
+                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <line x1="18" y1="6" x2="6" y2="18"></line>
+                    <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+            </button>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label for="apiBaseUrlInput" class="form-label">Spring Boot Backend URL</label>
+                <input type="url" id="apiBaseUrlInput" class="form-control" placeholder="e.g., https://amazon-checker-backend.onrender.com (or leave blank for same-origin)">
+                <small class="form-hint">
+                    Leave blank to use current origin (or Vercel proxy rewrite). When frontend is deployed to Vercel and backend is hosted separately on Render, Railway, or AWS, enter the backend URL here.
+                </small>
+            </div>
+
+            <div id="apiTestResult" class="api-test-result hidden">
+                <span id="apiTestStatusIcon"></span>
+                <span id="apiTestStatusMsg"></span>
+            </div>
+        </div>
+        <div class="modal-footer">
+            <button id="testApiConnectionBtn" class="btn btn-secondary btn-sm">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+                <span id="testApiBtnText">Test Connection</span>
+            </button>
+            <button id="saveApiSettingsBtn" class="btn btn-primary btn-sm">Save &amp; Connect</button>
         </div>
     </div>
 </div>

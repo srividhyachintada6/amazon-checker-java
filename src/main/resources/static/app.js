@@ -1,3 +1,68 @@
+// ===================================================================
+// Phase 8: Cloud Deployment & Configurable Backend API
+// ===================================================================
+const apiConfigBtn = document.getElementById("apiConfigBtn");
+const apiEndpointBadge = document.getElementById("apiEndpointBadge");
+const apiSettingsModal = document.getElementById("apiSettingsModal");
+const apiSettingsModalBackdrop = document.getElementById("apiSettingsModalBackdrop");
+const closeApiSettingsModalBtn = document.getElementById("closeApiSettingsModalBtn");
+const apiBaseUrlInput = document.getElementById("apiBaseUrlInput");
+const apiTestResult = document.getElementById("apiTestResult");
+const apiTestStatusIcon = document.getElementById("apiTestStatusIcon");
+const apiTestStatusMsg = document.getElementById("apiTestStatusMsg");
+const testApiConnectionBtn = document.getElementById("testApiConnectionBtn");
+const testApiBtnText = document.getElementById("testApiBtnText");
+const saveApiSettingsBtn = document.getElementById("saveApiSettingsBtn");
+
+function getApiBaseUrl() {
+    if (typeof window !== "undefined") {
+        if (window.API_BASE_URL) return String(window.API_BASE_URL).replace(/\/+$/, "");
+        const stored = localStorage.getItem("API_BASE_URL");
+        if (stored && stored.trim()) return stored.trim().replace(/\/+$/, "");
+    }
+    return "";
+}
+
+function setApiBaseUrl(url) {
+    if (url && url.trim()) {
+        localStorage.setItem("API_BASE_URL", url.trim().replace(/\/+$/, ""));
+    } else {
+        localStorage.removeItem("API_BASE_URL");
+    }
+    updateApiEndpointBadge();
+}
+
+function apiUrl(path) {
+    const base = getApiBaseUrl();
+    const cleanPath = path.startsWith("/") ? path : `/${path}`;
+    return base ? `${base}${cleanPath}` : cleanPath;
+}
+
+function getAssetUrl(url) {
+    if (!url) return null;
+    if (url.startsWith("http://") || url.startsWith("https://") || url.startsWith("data:")) {
+        return url;
+    }
+    const base = getApiBaseUrl();
+    const cleanPath = url.startsWith("/") ? url : `/${url}`;
+    return base ? `${base}${cleanPath}` : cleanPath;
+}
+
+function updateApiEndpointBadge() {
+    if (!apiEndpointBadge) return;
+    const base = getApiBaseUrl();
+    if (!base) {
+        apiEndpointBadge.textContent = "API: Default";
+    } else {
+        try {
+            const parsed = new URL(base);
+            apiEndpointBadge.textContent = `API: ${parsed.hostname}`;
+        } catch {
+            apiEndpointBadge.textContent = "API: Custom";
+        }
+    }
+}
+
 // DOM Elements
 const checkButton = document.getElementById("checkButton");
 const checkButtonText = document.getElementById("checkButtonText");
@@ -280,8 +345,8 @@ async function loadDashboardData() {
 
     try {
         const [productsRes, summaryRes] = await Promise.all([
-            fetch("/api/products"),
-            fetch("/api/summary")
+            fetch(apiUrl("/api/products")),
+            fetch(apiUrl("/api/summary"))
         ]);
 
         if (!productsRes.ok) {
@@ -426,7 +491,7 @@ function renderProducts(products) {
         const formattedPrice = formatPrice(product.price);
         const formattedTime = product.lastChecked ? formatTimeOnly(product.lastChecked) : "Not yet checked";
         const hasScreenshot = Boolean(product.screenshot);
-        const screenshotSrc = hasScreenshot ? product.screenshot : null;
+        const screenshotSrc = hasScreenshot ? getAssetUrl(product.screenshot) : null;
         const hasUrl = Boolean(product.productUrl && product.productUrl.trim() !== "");
 
         // Price Change logic
@@ -580,7 +645,7 @@ async function openPriceHistory(productId, productName) {
     if (historyTableBody) historyTableBody.innerHTML = "";
 
     try {
-        const res = await fetch(`/api/products/${encodeURIComponent(productId)}/history`);
+        const res = await fetch(apiUrl(`/api/products/${encodeURIComponent(productId)}/history`));
         if (!res.ok) {
             throw new Error(`HTTP ${res.status}`);
         }
@@ -648,7 +713,7 @@ window.openPriceHistory = openPriceHistory;
 async function loadGlobalHistory() {
     if (!globalHistoryTableBody) return;
     try {
-        const res = await fetch("/api/history?limit=25");
+        const res = await fetch(apiUrl("/api/history?limit=25"));
         if (!res.ok) return;
         const historyList = await res.json();
 
@@ -835,7 +900,7 @@ async function executeAmazonSearch(query, triggerBtn, triggerTextEl) {
     if (searchResultsCount) searchResultsCount.textContent = "Searching...";
 
     try {
-        const res = await fetch(`/api/products/search?query=${encodeURIComponent(q)}`);
+        const res = await fetch(apiUrl(`/api/products/search?query=${encodeURIComponent(q)}`));
         if (!res.ok) {
             let errorMsg = `Search failed (HTTP ${res.status})`;
             try {
@@ -942,7 +1007,7 @@ async function selectSearchResult(index) {
     }
 
     try {
-        const res = await fetch("/api/products", {
+        const res = await fetch(apiUrl("/api/products"), {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: item.name, url: item.url })
@@ -1074,7 +1139,7 @@ async function handleProductFormSubmit(e) {
         const endpoint = isEdit ? `/api/products/${encodeURIComponent(id)}` : "/api/products";
         const method = isEdit ? "PUT" : "POST";
 
-        const res = await fetch(endpoint, {
+        const res = await fetch(apiUrl(endpoint), {
             method: method,
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ name: name, url: url })
@@ -1148,7 +1213,7 @@ async function handleConfirmDelete() {
     }
 
     try {
-        const res = await fetch(`/api/products/${encodeURIComponent(productPendingDelete)}`, {
+        const res = await fetch(apiUrl(`/api/products/${encodeURIComponent(productPendingDelete)}`), {
             method: "DELETE"
         });
 
@@ -1180,7 +1245,7 @@ async function handleConfirmDelete() {
  */
 async function loadRawLog() {
     try {
-        const response = await fetch("/api/log");
+        const response = await fetch(apiUrl("/api/log"));
         if (!response.ok) return;
         const text = await response.text();
         if (results) {
@@ -1312,7 +1377,7 @@ function renderNextCheckCountdown() {
  */
 async function fetchStatus() {
     try {
-        const res = await fetch("/api/status");
+        const res = await fetch(apiUrl("/api/status"));
         if (!res.ok) return null;
         const data = await res.json();
         updateStatusAndScheduler(data);
@@ -1342,7 +1407,7 @@ async function checkProducts() {
     }
 
     try {
-        const response = await fetch("/api/check", {
+        const response = await fetch(apiUrl("/api/check"), {
             method: "POST"
         });
 
@@ -1624,6 +1689,89 @@ if (refreshHistoryBtn) {
     refreshHistoryBtn.addEventListener("click", loadGlobalHistory);
 }
 
+// Cloud API Settings Modal (Phase 8)
+function openApiSettingsModal() {
+    if (!apiSettingsModal) return;
+    if (apiBaseUrlInput) {
+        apiBaseUrlInput.value = getApiBaseUrl();
+    }
+    if (apiTestResult) {
+        apiTestResult.className = "api-test-result hidden";
+        if (apiTestStatusMsg) apiTestStatusMsg.textContent = "";
+    }
+    apiSettingsModal.classList.remove("hidden");
+    if (apiBaseUrlInput) apiBaseUrlInput.focus();
+}
+
+function closeApiSettingsModal() {
+    if (apiSettingsModal) {
+        apiSettingsModal.classList.add("hidden");
+    }
+}
+
+async function testApiConnection() {
+    const rawUrl = apiBaseUrlInput ? apiBaseUrlInput.value.trim().replace(/\/+$/, "") : "";
+    const testEndpoint = rawUrl ? `${rawUrl}/api/health` : "/api/health";
+
+    if (testApiBtnText) testApiBtnText.textContent = "Testing...";
+    if (testApiConnectionBtn) testApiConnectionBtn.disabled = true;
+
+    if (apiTestResult) {
+        apiTestResult.className = "api-test-result testing";
+        if (apiTestStatusIcon) apiTestStatusIcon.textContent = "⏳";
+        if (apiTestStatusMsg) apiTestStatusMsg.textContent = `Connecting to ${testEndpoint}...`;
+        apiTestResult.classList.remove("hidden");
+    }
+
+    try {
+        const res = await fetch(testEndpoint, { method: "GET" });
+        if (!res.ok) {
+            throw new Error(`HTTP ${res.status} ${res.statusText}`);
+        }
+        const data = await res.json();
+        if (apiTestResult) {
+            apiTestResult.className = "api-test-result success";
+            if (apiTestStatusIcon) apiTestStatusIcon.textContent = "✔";
+            const dbInfo = data.database ? ` (DB: ${data.database})` : "";
+            if (apiTestStatusMsg) apiTestStatusMsg.textContent = `Connected successfully! Status: ${data.status || "UP"}${dbInfo}`;
+        }
+    } catch (err) {
+        if (apiTestResult) {
+            apiTestResult.className = "api-test-result error";
+            if (apiTestStatusIcon) apiTestStatusIcon.textContent = "✖";
+            if (apiTestStatusMsg) apiTestStatusMsg.textContent = `Connection failed: ${err.message}. Verify that the backend is running and CORS allows this origin.`;
+        }
+    } finally {
+        if (testApiBtnText) testApiBtnText.textContent = "Test Connection";
+        if (testApiConnectionBtn) testApiConnectionBtn.disabled = false;
+    }
+}
+
+function handleSaveApiSettings() {
+    const url = apiBaseUrlInput ? apiBaseUrlInput.value.trim() : "";
+    setApiBaseUrl(url);
+    closeApiSettingsModal();
+    // Reload data using new base url
+    loadDashboardData();
+    fetchStatus();
+}
+
+if (apiConfigBtn) {
+    apiConfigBtn.addEventListener("click", openApiSettingsModal);
+}
+if (closeApiSettingsModalBtn) {
+    closeApiSettingsModalBtn.addEventListener("click", closeApiSettingsModal);
+}
+if (apiSettingsModalBackdrop) {
+    apiSettingsModalBackdrop.addEventListener("click", closeApiSettingsModal);
+}
+if (testApiConnectionBtn) {
+    testApiConnectionBtn.addEventListener("click", testApiConnection);
+}
+if (saveApiSettingsBtn) {
+    saveApiSettingsBtn.addEventListener("click", handleSaveApiSettings);
+}
+
 // Global Escape Key to close any open modal
 window.addEventListener("keydown", (e) => {
     if (e.key === "Escape") {
@@ -1636,8 +1784,14 @@ window.addEventListener("keydown", (e) => {
         if (historyModal && !historyModal.classList.contains("hidden")) {
             closeHistoryModal();
         }
+        if (apiSettingsModal && !apiSettingsModal.classList.contains("hidden")) {
+            closeApiSettingsModal();
+        }
     }
 });
+
+// Initialize UI badge
+updateApiEndpointBadge();
 
 // Initial dashboard load
 loadDashboardData();

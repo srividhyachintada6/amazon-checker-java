@@ -10,10 +10,15 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import com.amazonchecker.entity.ProductEntity;
+import org.springframework.dao.DataIntegrityViolationException;
+
 import java.io.IOException;
 import java.net.MalformedURLException;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @RestController
@@ -31,6 +36,12 @@ public class DashboardController {
     @GetMapping(value = "/products", produces = MediaType.APPLICATION_JSON_VALUE)
     public List<ProductResponse> getProducts() {
         return productService.getProducts();
+    }
+
+    @GetMapping(value = "/products/{id}", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductResponse> getProductById(@PathVariable("id") String id) {
+        ProductResponse product = productService.getProductById(id);
+        return ResponseEntity.ok(product);
     }
 
     @GetMapping(value = "/products/search", produces = MediaType.APPLICATION_JSON_VALUE)
@@ -188,6 +199,31 @@ public class DashboardController {
         }
     }
 
+    @GetMapping(value = "/health", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> health() {
+        Map<String, Object> health = new LinkedHashMap<>();
+        health.put("status", "UP");
+        health.put("timestamp", LocalDateTime.now().format(DateTimeFormatter.ISO_LOCAL_DATE_TIME));
+
+        try {
+            List<ProductEntity> active = productService.getActiveProducts();
+            health.put("database", "CONNECTED");
+            health.put("activeProducts", active.size());
+        } catch (Exception e) {
+            health.put("database", "DISCONNECTED: " + e.getMessage());
+            health.put("status", "DOWN");
+        }
+
+        health.put("schedulerEnabled", schedulerRunner.isEnabled());
+        health.put("schedulerIntervalMinutes", schedulerRunner.getIntervalMinutes());
+        health.put("isChecking", schedulerRunner.isChecking());
+        health.put("lastCheck", schedulerRunner.getFormattedLastCheckTime());
+        health.put("nextCheck", schedulerRunner.getFormattedNextCheckTime());
+
+        HttpStatus status = "UP".equals(health.get("status")) ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE;
+        return ResponseEntity.status(status).body(health);
+    }
+
     @ExceptionHandler(IllegalArgumentException.class)
     public ResponseEntity<Map<String, String>> handleBadRequest(IllegalArgumentException e) {
         return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(Map.of(
@@ -201,6 +237,14 @@ public class DashboardController {
         return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
                 "status", "error",
                 "message", e.getMessage()
+        ));
+    }
+
+    @ExceptionHandler(DataIntegrityViolationException.class)
+    public ResponseEntity<Map<String, String>> handleDataIntegrityViolation(DataIntegrityViolationException e) {
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(Map.of(
+                "status", "error",
+                "message", "Database constraint violation: duplicate record or invalid relationship"
         ));
     }
 

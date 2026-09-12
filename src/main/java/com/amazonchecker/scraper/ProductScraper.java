@@ -29,12 +29,13 @@ public class ProductScraper {
     /** Simple version: always fetches live, matching main.py's default call. */
     public static Document fetchProductPage(String url) {
         try {
+            if (url == null || url.isBlank()) return null;
             String normalized = normalizeUrl(url);
             return Jsoup.connect(normalized)
                     .headers(Headers.get())
                     .timeout(10_000)
                     .get();
-        } catch (IOException e) {
+        } catch (Exception e) {
             System.err.println("❌ Failed to fetch product page: " + e.getMessage());
             return null;
         }

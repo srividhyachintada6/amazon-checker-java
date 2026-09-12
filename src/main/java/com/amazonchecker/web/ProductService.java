@@ -1,10 +1,18 @@
 package com.amazonchecker.web;
 
+import com.amazonchecker.entity.MonitoringResultEntity;
+import com.amazonchecker.entity.ProductEntity;
+import com.amazonchecker.repository.MonitoringResultRepository;
+import com.amazonchecker.repository.ProductRepository;
 import com.amazonchecker.scraper.SearchScraper;
 import com.amazonchecker.utils.CsvHandler;
+import com.amazonchecker.utils.LogWriter;
 import com.amazonchecker.utils.Product;
 import com.amazonchecker.web.dto.*;
+import jakarta.annotation.PostConstruct;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.io.File;
 import java.io.IOException;
@@ -12,6 +20,8 @@ import java.net.URI;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 @Service
@@ -21,79 +31,161 @@ public class ProductService {
     private static final String LOG_FILE = "data/availability_log.txt";
     private static final String SCREENSHOTS_DIR = "screenshots";
 
-    public static class LogEntry {
-        final String timestamp;
-        final String status;
-        final String priceStr;
+    private final ProductRepository productRepository;
+    private final MonitoringResultRepository monitoringResultRepository;
 
-        LogEntry(String timestamp, String status, String priceStr) {
-            this.timestamp = timestamp;
-            this.status = status;
-            this.priceStr = priceStr;
-        }
+    public ProductService(ProductRepository productRepository, MonitoringResultRepository monitoringResultRepository) {
+        this.productRepository = productRepository;
+        this.monitoringResultRepository = monitoringResultRepository;
     }
 
-    public List<ProductResponse> getProducts() {
-        // 1. Read configured products from CSV
-        List<Product> configuredProducts = new ArrayList<>();
+    /**
+     * First-boot Migration: If the database is empty, seed from existing data/products.csv and availability_log.txt.
+     * Triggered on ApplicationReadyEvent once Hibernate DDL table creation has completed.
+     */
+    @org.springframework.context.event.EventListener(org.springframework.boot.context.event.ApplicationReadyEvent.class)
+    @Transactional
+    public void migrateFromFilesIfEmpty() {
+        try {
+            if (productRepository.count() > 0) {
+                return;
+            }
+        } catch (Exception e) {
+            System.err.println("⚠️ Could not check product count on startup: " + e.getMessage());
+            return;
+        }
+
+        System.out.println("🔄 Initializing database from data/products.csv and data/availability_log.txt...");
+
+        List<Product> csvProducts = new ArrayList<>();
         try {
             Path csvPath = Path.of(CSV_FILE);
             if (Files.exists(csvPath)) {
-                configuredProducts = CsvHandler.readProducts(CSV_FILE);
+                csvProducts = CsvHandler.readProducts(CSV_FILE);
             }
         } catch (Exception e) {
-            System.err.println("⚠️ Could not read " + CSV_FILE + ": " + e.getMessage());
+            System.err.println("⚠️ Could not read " + CSV_FILE + " during migration: " + e.getMessage());
         }
 
-        // 2. Read full chronological log history grouped by product
-        Map<String, List<LogEntry>> historyLogs = loadAllLogsGrouped();
+        Map<String, ProductEntity> savedByName = new HashMap<>();
+        for (Product p : csvProducts) {
+            if (p.getUrl() == null || p.getUrl().isBlank()) continue;
+            try {
+                ProductEntity entity = new ProductEntity(p.getName(), p.getUrl().trim());
+                entity = productRepository.save(entity);
+                savedByName.put(p.getName().toLowerCase(), entity);
+            } catch (Exception e) {
+                System.err.println("⚠️ Migration error saving product " + p.getName() + ": " + e.getMessage());
+            }
+        }
 
-        // 3. Scan available screenshots (maps normalized name to filename)
-        Map<String, String> latestScreenshots = loadLatestScreenshotFilenames();
+        // Migrate historical availability log
+        try {
+            Path logPath = Path.of(LOG_FILE);
+            if (Files.exists(logPath)) {
+                List<String> lines = Files.readAllLines(logPath, StandardCharsets.UTF_8);
+                int migratedCount = 0;
+                for (String line : lines) {
+                    if (line == null || !line.contains("|")) continue;
+                    String[] parts = line.split("\\|");
+                    if (parts.length >= 3) {
+                        String tsStr = parts[0].trim();
+                        String prodName = parts[1].trim();
+                        String status = parts[2].trim();
+                        String priceStr = parts.length > 3 ? parts[3].trim() : "";
+                        Double price = parsePrice(priceStr);
 
-        List<ProductResponse> responses = new ArrayList<>();
-        Set<String> processedNames = new HashSet<>();
-
-        // Build list starting from configured products
-        for (Product product : configuredProducts) {
-            String name = product.getName();
-            processedNames.add(name.toLowerCase());
-            String id = generateId(name);
-
-            List<LogEntry> entries = findMatchingHistory(name, historyLogs);
-            String screenshotFilename = findMatchingScreenshotFilename(name, latestScreenshots);
-            String screenshotUrl = screenshotFilename != null ? "/api/screenshots/" + screenshotFilename : null;
-
-            String status = "NOT CHECKED";
-            Double currentPrice = null;
-            Double previousPrice = null;
-            Double priceChange = null;
-            String lastChecked = null;
-
-            if (entries != null && !entries.isEmpty()) {
-                LogEntry latest = entries.get(entries.size() - 1);
-                status = latest.status;
-                currentPrice = parsePrice(latest.priceStr);
-                lastChecked = formatTimestamp(latest.timestamp);
-
-                // Find previous price from earlier historical checks
-                if (currentPrice != null) {
-                    for (int i = entries.size() - 2; i >= 0; i--) {
-                        Double prev = parsePrice(entries.get(i).priceStr);
-                        if (prev != null) {
-                            previousPrice = prev;
-                            priceChange = Math.round((currentPrice - previousPrice) * 100.0) / 100.0;
-                            break;
+                        ProductEntity entity = savedByName.get(prodName.toLowerCase());
+                        if (entity != null) {
+                            LocalDateTime checkedAt = parseTimestamp(tsStr);
+                            monitoringResultRepository.save(new MonitoringResultEntity(
+                                    entity,
+                                    checkedAt != null ? checkedAt : LocalDateTime.now(),
+                                    price,
+                                    status,
+                                    "Migrated historical check",
+                                    null
+                            ));
+                            migratedCount++;
                         }
                     }
                 }
+                System.out.println("🎉 Migration complete: " + savedByName.size() + " products and " + migratedCount + " monitoring logs imported to database.");
             }
+        } catch (Exception e) {
+            System.err.println("⚠️ History migration warning: " + e.getMessage());
+        }
+    }
 
-            String url = product.hasUrl() ? product.getUrl() : null;
-            responses.add(new ProductResponse(id, name, status, currentPrice, previousPrice, priceChange, lastChecked, url, screenshotUrl));
+    public List<ProductEntity> getActiveProducts() {
+        return productRepository.findByActiveTrue();
+    }
+
+    public List<ProductResponse> getProducts() {
+        List<ProductEntity> entities = productRepository.findByActiveTrueOrderByCreatedAtDesc();
+        Map<String, String> latestScreenshots = loadLatestScreenshotFilenames();
+
+        List<ProductResponse> responses = new ArrayList<>();
+        for (ProductEntity product : entities) {
+            responses.add(mapToProductResponse(product, latestScreenshots));
         }
 
         return responses;
+    }
+
+    public ProductResponse getProductById(String idOrSlug) {
+        ProductEntity product = findProductByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new NoSuchElementException("Product not found: " + idOrSlug));
+        return mapToProductResponse(product, loadLatestScreenshotFilenames());
+    }
+
+    private ProductResponse mapToProductResponse(ProductEntity product, Map<String, String> latestScreenshots) {
+        List<MonitoringResultEntity> results = monitoringResultRepository.findByProductIdOrderByCheckedAtDesc(product.getId());
+
+        String status = "NOT CHECKED";
+        Double currentPrice = null;
+        Double previousPrice = null;
+        Double priceChange = null;
+        String lastChecked = null;
+        String screenshotUrl = null;
+
+        if (results != null && !results.isEmpty()) {
+            MonitoringResultEntity latest = results.get(0);
+            status = latest.getAvailability();
+            currentPrice = latest.getPrice();
+            lastChecked = formatDateTime(latest.getCheckedAt());
+            screenshotUrl = latest.getScreenshotUrl();
+
+            if (currentPrice != null) {
+                for (int i = 1; i < results.size(); i++) {
+                    Double prev = results.get(i).getPrice();
+                    if (prev != null) {
+                        previousPrice = prev;
+                        priceChange = Math.round((currentPrice - previousPrice) * 100.0) / 100.0;
+                        break;
+                    }
+                }
+            }
+        }
+
+        if (screenshotUrl == null) {
+            String screenshotFilename = findMatchingScreenshotFilename(product.getName(), latestScreenshots);
+            if (screenshotFilename != null) {
+                screenshotUrl = "/api/screenshots/" + screenshotFilename;
+            }
+        }
+
+        return new ProductResponse(
+                String.valueOf(product.getId()),
+                product.getName(),
+                status,
+                currentPrice,
+                previousPrice,
+                priceChange,
+                lastChecked,
+                product.getUrl(),
+                screenshotUrl
+        );
     }
 
     public SummaryResponse getSummary() {
@@ -134,7 +226,8 @@ public class ProductService {
         return new SummaryResponse(total, inStock, outOfStock, errors, priceDrops, latestCheck);
     }
 
-    public synchronized ProductResponse addProduct(ProductRequest request) throws IOException {
+    @Transactional
+    public ProductResponse addProduct(ProductRequest request) throws IOException {
         if (request == null) {
             throw new IllegalArgumentException("Product data is required");
         }
@@ -144,32 +237,38 @@ public class ProductService {
         }
         String validUrl = validateAndNormalizeUrl(request.getUrl());
 
-        List<Product> products = new ArrayList<>();
-        Path path = Path.of(CSV_FILE);
-        if (Files.exists(path)) {
-            products = CsvHandler.readProducts(CSV_FILE);
-        }
-
-        // Duplicate URL prevention
+        // Check duplicate URL against database
         String normUrl = normalizeUrlForComparison(validUrl);
-        for (Product p : products) {
+        List<ProductEntity> existingProducts = productRepository.findAll();
+        for (ProductEntity p : existingProducts) {
             if (normalizeUrlForComparison(p.getUrl()).equals(normUrl)) {
                 throw new IllegalStateException("A product with this URL is already being monitored");
             }
         }
 
-        Product newProduct = new Product(name, validUrl);
-        products.add(newProduct);
-        CsvHandler.writeProducts(products, CSV_FILE);
+        ProductEntity entity = new ProductEntity(name, validUrl);
+        entity = productRepository.save(entity);
 
-        String id = generateId(name);
-        return new ProductResponse(id, name, "NOT CHECKED", null, null, null, null, validUrl, null);
+        syncCsv();
+
+        return new ProductResponse(
+                String.valueOf(entity.getId()),
+                entity.getName(),
+                "NOT CHECKED",
+                null,
+                null,
+                null,
+                null,
+                entity.getUrl(),
+                null
+        );
     }
 
-    public synchronized ProductResponse updateProduct(String id, ProductRequest request) throws IOException {
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("Product ID is required");
-        }
+    @Transactional
+    public ProductResponse updateProduct(String idOrSlug, ProductRequest request) throws IOException {
+        ProductEntity entity = findProductByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new NoSuchElementException("Product not found: " + idOrSlug));
+
         if (request == null) {
             throw new IllegalArgumentException("Product data is required");
         }
@@ -179,87 +278,129 @@ public class ProductService {
         }
         String validUrl = validateAndNormalizeUrl(request.getUrl());
 
-        List<Product> products = CsvHandler.readProducts(CSV_FILE);
-        int targetIndex = -1;
-        for (int i = 0; i < products.size(); i++) {
-            Product p = products.get(i);
-            if (generateId(p.getName()).equalsIgnoreCase(id) || p.getName().equalsIgnoreCase(id)) {
-                targetIndex = i;
-                break;
-            }
-        }
-
-        if (targetIndex == -1) {
-            throw new NoSuchElementException("Product not found: " + id);
-        }
-
         // Check duplicate URL against other products
         String normUrl = normalizeUrlForComparison(validUrl);
-        for (int i = 0; i < products.size(); i++) {
-            if (i != targetIndex && normalizeUrlForComparison(products.get(i).getUrl()).equals(normUrl)) {
+        List<ProductEntity> existingProducts = productRepository.findAll();
+        for (ProductEntity p : existingProducts) {
+            if (!p.getId().equals(entity.getId()) && normalizeUrlForComparison(p.getUrl()).equals(normUrl)) {
                 throw new IllegalStateException("Another product already has this URL");
             }
         }
 
-        products.set(targetIndex, new Product(name, validUrl));
-        CsvHandler.writeProducts(products, CSV_FILE);
+        entity.setName(name);
+        entity.setUrl(validUrl);
+        entity = productRepository.save(entity);
 
-        // Return updated product representation
-        List<ProductResponse> all = getProducts();
-        String newId = generateId(name);
-        for (ProductResponse pr : all) {
-            if (pr.getId().equalsIgnoreCase(newId)) {
-                return pr;
-            }
-        }
-        return new ProductResponse(newId, name, "NOT CHECKED", null, null, null, null, validUrl, null);
+        syncCsv();
+
+        return mapToProductResponse(entity, loadLatestScreenshotFilenames());
     }
 
-    public synchronized boolean deleteProduct(String id) throws IOException {
-        if (id == null || id.isBlank()) {
-            throw new IllegalArgumentException("Product ID is required");
+    @Transactional
+    public boolean deleteProduct(String idOrSlug) throws IOException {
+        Optional<ProductEntity> optional = findProductByIdOrSlug(idOrSlug);
+        if (optional.isEmpty()) {
+            return false;
         }
-        List<Product> products = CsvHandler.readProducts(CSV_FILE);
-        boolean removed = products.removeIf(p -> generateId(p.getName()).equalsIgnoreCase(id) || p.getName().equalsIgnoreCase(id));
-        if (removed) {
-            CsvHandler.writeProducts(products, CSV_FILE);
-            return true;
+
+        ProductEntity entity = optional.get();
+        monitoringResultRepository.deleteByProductId(entity.getId());
+        productRepository.delete(entity);
+
+        syncCsv();
+        return true;
+    }
+
+    @Transactional
+    public void recordCheckResult(ProductEntity product, String availability, String priceStr, String screenshotUrl) {
+        Double price = parsePrice(priceStr);
+        MonitoringResultEntity result = new MonitoringResultEntity(
+                product,
+                LocalDateTime.now(),
+                price,
+                availability != null ? availability : "UNKNOWN",
+                "Periodic Check",
+                screenshotUrl
+        );
+        monitoringResultRepository.save(result);
+
+        product.setUpdatedAt(LocalDateTime.now());
+        productRepository.save(product);
+
+        // Dual-log to availability_log.txt for backward compatibility
+        LogWriter.logResult(product.getName(), availability, priceStr);
+    }
+
+    public List<PriceHistoryPoint> getProductHistory(String idOrSlug) {
+        Optional<ProductEntity> optional = findProductByIdOrSlug(idOrSlug);
+        if (optional.isEmpty()) {
+            return Collections.emptyList();
         }
-        return false;
+
+        List<MonitoringResultEntity> results = monitoringResultRepository.findByProductIdOrderByCheckedAtAsc(optional.get().getId());
+        List<PriceHistoryPoint> points = new ArrayList<>();
+        for (MonitoringResultEntity r : results) {
+            points.add(new PriceHistoryPoint(
+                    formatDateTime(r.getCheckedAt()),
+                    r.getPrice(),
+                    r.getAvailability()
+            ));
+        }
+        return points;
     }
 
     public List<HistoryEntryResponse> getAllHistory(int limit) {
+        int max = limit > 0 ? limit : 50;
+        List<MonitoringResultEntity> results = monitoringResultRepository.findAllByOrderByCheckedAtDesc(PageRequest.of(0, max));
         List<HistoryEntryResponse> list = new ArrayList<>();
-        Path logPath = Path.of(LOG_FILE);
-        if (!Files.exists(logPath)) {
-            return list;
+        for (MonitoringResultEntity r : results) {
+            String priceStr = r.getPrice() != null ? "₹" + String.format(Locale.ENGLISH, "%,.2f", r.getPrice()) : "Price Not Available";
+            list.add(new HistoryEntryResponse(
+                    formatDateTime(r.getCheckedAt()),
+                    r.getProduct() != null ? r.getProduct().getName() : "Unknown Product",
+                    r.getAvailability(),
+                    r.getPrice(),
+                    priceStr
+            ));
         }
-
-        try {
-            List<String> lines = Files.readAllLines(logPath, StandardCharsets.UTF_8);
-            for (int i = lines.size() - 1; i >= 0; i--) {
-                String line = lines.get(i);
-                if (line == null || !line.contains("|")) continue;
-
-                String[] parts = line.split("\\|");
-                if (parts.length >= 3) {
-                    String timestamp = formatTimestamp(parts[0].trim());
-                    String name = parts[1].trim();
-                    String status = parts[2].trim();
-                    String priceStr = parts.length > 3 ? parts[3].trim() : "";
-                    Double price = parsePrice(priceStr);
-
-                    list.add(new HistoryEntryResponse(timestamp, name, status, price, priceStr));
-                    if (limit > 0 && list.size() >= limit) {
-                        break;
-                    }
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("⚠️ Could not read " + LOG_FILE + ": " + e.getMessage());
-        }
-
         return list;
+    }
+
+    public Optional<ProductEntity> findProductByIdOrSlug(String idOrSlug) {
+        if (idOrSlug == null || idOrSlug.isBlank()) {
+            return Optional.empty();
+        }
+        String trimmed = idOrSlug.trim();
+        try {
+            long numericId = Long.parseLong(trimmed);
+            Optional<ProductEntity> byId = productRepository.findById(numericId);
+            if (byId.isPresent()) {
+                return byId;
+            }
+        } catch (NumberFormatException ignored) {
+        }
+
+        List<ProductEntity> all = productRepository.findAll();
+        for (ProductEntity p : all) {
+            if (generateId(p.getName()).equalsIgnoreCase(trimmed) || p.getName().equalsIgnoreCase(trimmed)) {
+                return Optional.of(p);
+            }
+        }
+
+        return Optional.empty();
+    }
+
+    private synchronized void syncCsv() {
+        try {
+            List<ProductEntity> active = productRepository.findByActiveTrue();
+            List<Product> csvList = new ArrayList<>();
+            for (ProductEntity p : active) {
+                csvList.add(new Product(p.getName(), p.getUrl()));
+            }
+            CsvHandler.writeProducts(csvList, CSV_FILE);
+        } catch (Exception e) {
+            System.err.println("⚠️ Could not sync products.csv: " + e.getMessage());
+        }
     }
 
     private String validateAndNormalizeUrl(String url) {
@@ -290,85 +431,6 @@ public class ProductService {
         return u;
     }
 
-    public List<PriceHistoryPoint> getProductHistory(String idOrName) {
-        if (idOrName == null || idOrName.isBlank()) {
-            return Collections.emptyList();
-        }
-
-        Map<String, List<LogEntry>> historyLogs = loadAllLogsGrouped();
-
-        // 1. Try matching by slug ID
-        for (Map.Entry<String, List<LogEntry>> entry : historyLogs.entrySet()) {
-            String prodName = entry.getKey();
-            if (generateId(prodName).equalsIgnoreCase(idOrName) || prodName.equalsIgnoreCase(idOrName)) {
-                return mapToHistoryPoints(entry.getValue());
-            }
-        }
-
-        // 2. Also try matching with CSV products
-        try {
-            Path csvPath = Path.of(CSV_FILE);
-            if (Files.exists(csvPath)) {
-                List<Product> csvProducts = CsvHandler.readProducts(CSV_FILE);
-                for (Product p : csvProducts) {
-                    if (generateId(p.getName()).equalsIgnoreCase(idOrName) || p.getName().equalsIgnoreCase(idOrName)) {
-                        List<LogEntry> entries = findMatchingHistory(p.getName(), historyLogs);
-                        return mapToHistoryPoints(entries);
-                    }
-                }
-            }
-        } catch (Exception ignored) {
-        }
-
-        return Collections.emptyList();
-    }
-
-    private List<PriceHistoryPoint> mapToHistoryPoints(List<LogEntry> entries) {
-        if (entries == null || entries.isEmpty()) {
-            return Collections.emptyList();
-        }
-        List<PriceHistoryPoint> points = new ArrayList<>();
-        for (LogEntry entry : entries) {
-            points.add(new PriceHistoryPoint(
-                    formatTimestamp(entry.timestamp),
-                    parsePrice(entry.priceStr),
-                    entry.status
-            ));
-        }
-        return points;
-    }
-
-    private Map<String, List<LogEntry>> loadAllLogsGrouped() {
-        Map<String, List<LogEntry>> map = new LinkedHashMap<>();
-        Path logPath = Path.of(LOG_FILE);
-
-        if (!Files.exists(logPath)) {
-            return map;
-        }
-
-        try {
-            List<String> lines = Files.readAllLines(logPath, StandardCharsets.UTF_8);
-            for (String line : lines) {
-                if (line == null || !line.contains("|")) continue;
-
-                String[] parts = line.split("\\|");
-                if (parts.length >= 3) {
-                    String timestamp = parts[0].trim();
-                    String name = parts[1].trim();
-                    String status = parts[2].trim();
-                    String priceStr = parts.length > 3 ? parts[3].trim() : "";
-
-                    map.computeIfAbsent(name, k -> new ArrayList<>())
-                       .add(new LogEntry(timestamp, status, priceStr));
-                }
-            }
-        } catch (IOException e) {
-            System.err.println("⚠️ Could not read " + LOG_FILE + ": " + e.getMessage());
-        }
-
-        return map;
-    }
-
     private Map<String, String> loadLatestScreenshotFilenames() {
         Map<String, String> map = new HashMap<>();
         File dir = new File(SCREENSHOTS_DIR);
@@ -382,7 +444,6 @@ public class ProductService {
             return map;
         }
 
-        // Sort descending by filename timestamp so newest is encountered first
         Arrays.sort(files, (a, b) -> b.getName().compareTo(a.getName()));
 
         for (File file : files) {
@@ -395,18 +456,6 @@ public class ProductService {
         }
 
         return map;
-    }
-
-    private List<LogEntry> findMatchingHistory(String productName, Map<String, List<LogEntry>> logs) {
-        if (logs.containsKey(productName)) {
-            return logs.get(productName);
-        }
-        for (Map.Entry<String, List<LogEntry>> entry : logs.entrySet()) {
-            if (entry.getKey().equalsIgnoreCase(productName)) {
-                return entry.getValue();
-            }
-        }
-        return Collections.emptyList();
     }
 
     private String findMatchingScreenshotFilename(String productName, Map<String, String> screenshots) {
@@ -430,7 +479,7 @@ public class ProductService {
         return slug.isBlank() ? "product" : slug;
     }
 
-    private Double parsePrice(String priceStr) {
+    public static Double parsePrice(String priceStr) {
         if (priceStr == null || priceStr.isBlank() || priceStr.toUpperCase().contains("NOT FOUND")) {
             return null;
         }
@@ -442,13 +491,27 @@ public class ProductService {
         }
     }
 
-    private String formatTimestamp(String raw) {
+    private String formatDateTime(LocalDateTime dt) {
+        if (dt == null) return null;
+        return dt.format(DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+    }
+
+    private LocalDateTime parseTimestamp(String raw) {
         if (raw == null || raw.isBlank()) return null;
-        int dot = raw.indexOf('.');
-        if (dot > 0) {
-            return raw.substring(0, dot);
+        try {
+            String clean = raw.trim();
+            if (clean.contains("T")) {
+                int dot = clean.indexOf('.');
+                if (dot > 0) clean = clean.substring(0, dot);
+                return LocalDateTime.parse(clean, DateTimeFormatter.ISO_LOCAL_DATE_TIME);
+            } else {
+                int dot = clean.indexOf('.');
+                if (dot > 0) clean = clean.substring(0, dot);
+                return LocalDateTime.parse(clean, DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            }
+        } catch (Exception ignored) {
+            return null;
         }
-        return raw;
     }
 
     public List<SearchResultResponse> searchProducts(String query) {

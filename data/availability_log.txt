@@ -132,3 +132,6 @@
 2026-09-12T13:52:20.549029700 | Test Product Alpha | Fetch Error | null
 2026-09-12T13:52:38.939219900 | Apple iPhone 15 Pro (128 GB) - Natural Titanium | IN STOCK | 101900.00
 2026-09-12T15:14:21.349077800 | Apple iPhone 15 Pro (128 GB) - Natural Titanium | IN STOCK | 51689.0
+2026-09-12T15:24:28.282664500 | Test Product Alpha | ERROR | PRICE NOT FOUND
+2026-09-12T15:24:46.956609300 | Apple iPhone 15 Pro (128 GB) - Natural Titanium | IN STOCK | 51689.0
+2026-09-12T15:25:05.606302800 | Mixer Grinder | IN STOCK | 3499.0

@@ -1,0 +1,97 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Amazon Availability Checker</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+<header class="header">
+
+    <div>
+        <h1>🛒 Amazon Availability Checker</h1>
+        <p>Check product availability and price automatically</p>
+    </div>
+
+    <div id="status" class="status ready">
+        ● Ready
+    </div>
+
+</header>
+
+
+<main class="container">
+
+    <section class="hero">
+
+        <div>
+            <h2>Amazon Product Monitor</h2>
+
+            <p>
+                Check all products from your products.csv file.
+                Results are collected by the Java Amazon checker.
+            </p>
+        </div>
+
+        <button id="checkButton">
+            🔍 Check All Products
+        </button>
+
+    </section>
+
+
+    <section class="card">
+
+        <div class="card-header">
+
+            <h2>Availability Results</h2>
+
+            <button id="refreshButton">
+                ↻ Refresh
+            </button>
+
+        </div>
+
+        <pre id="results">
+No results loaded yet.
+
+Click "Check All Products" to start checking Amazon.
+        </pre>
+
+    </section>
+
+
+    <section class="info-grid">
+
+        <div class="info-card">
+            <span>📁</span>
+            <h3>Product Source</h3>
+            <p>data/products.csv</p>
+        </div>
+
+        <div class="info-card">
+            <span>📊</span>
+            <h3>Results</h3>
+            <p>data/availability_log.txt</p>
+        </div>
+
+        <div class="info-card">
+            <span>📸</span>
+            <h3>Screenshots</h3>
+            <p>screenshots/</p>
+        </div>
+
+    </section>
+
+</main>
+
+<script src="app.js"></script>
+
+</body>
+</html>

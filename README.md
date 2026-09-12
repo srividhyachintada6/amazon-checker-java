@@ -25,8 +25,10 @@ This project delivers an automated solution that monitors targeted products in t
 
 ## 🚀 Key Features
 
-### 1. Product Management (CRUD)
-* **Add Products**: Add products directly from the UI by providing a descriptive name and valid Amazon URL.
+### 1. Smart Product Adding & Management (CRUD)
+* **Option 1 — Direct Link Mode**: Add products directly by entering a product name and valid Amazon URL.
+* **Option 2 — Real Amazon Search Mode**: Search products by name or keywords (e.g. "Amazon Basics HDMI Cable"). Uses live Jsoup search scraping to display selection cards with real thumbnails, prices, stock statuses, and direct links.
+* **Option 3 — Image Upload Mode**: Drag-and-drop or select an image file (PNG, JPG, WEBP <= 5MB). Features instant preview, automated filename sanitization to suggest the product title, editable confirmation, and one-click Amazon search.
 * **Edit & Update**: Modify existing product names and URLs seamlessly.
 * **Remove Products**: Delete products from active monitoring with confirmation protection.
 * **Validation & Uniqueness**: Enforces non-empty names, valid HTTP/HTTPS URLs, and prevents duplicate URLs from being registered.
@@ -35,6 +37,12 @@ This project delivers an automated solution that monitors targeted products in t
 * **Live Search**: Instant client-side search filtering by product name with a single-click clear control.
 * **Status Filter Tabs**: Filter items by *All*, *In Stock*, *Out of Stock*, or *Errors* with real-time count badges.
 * **Sorting Options**: Sort products by Name (A–Z / Z–A), Price (Low to High / High to Low), or Last Checked timestamp.
+
+### 3. Full Responsive UI & Mobile Optimization
+* **Fluid Breakpoints**: Optimized for 1440px, 1280px, 1024px, 768px, 640px, 480px, and 375px/320px screens.
+* **Zero Horizontal Scroll**: Enforces strict boundary constraints (`overflow-x: hidden`) across all mobile devices.
+* **Mobile Touch Targets**: All interactive buttons, tabs, inputs, and card actions satisfy minimum 44px touch targets.
+* **Adaptive Grids**: Summary cards and product grids gracefully transition from 6 to 3, 2, and 1 column.
 
 ### 3. Background Scheduler & On-Demand Checking
 * **Automated Background Scheduler**: Built on Java's `ScheduledExecutorService` running periodic checks at configurable intervals (default: 30 minutes via `application.properties`).
@@ -154,6 +162,7 @@ amazon-checker-java/
 │       │               └── dto/
 │       │                   ├── ProductRequest.java       # Add/edit request body
 │       │                   ├── ProductResponse.java      # Product detail DTO
+│       │                   ├── SearchResultResponse.java # Amazon search result item DTO
 │       │                   ├── SummaryResponse.java      # 6 KPI metrics DTO
 │       │                   ├── HistoryEntryResponse.java # Audit log entry DTO
 │       │                   └── PriceHistoryPoint.java    # Product price point DTO
@@ -195,6 +204,7 @@ spring.application.name=amazon-availability-checker
 |---|---|---|---|
 | `GET` | `/api/summary` | Returns 6 KPI summary metrics | `{ "totalProducts": 3, "inStock": 2, "outOfStock": 0, "errors": 1, "priceDrops": 1, ... }` |
 | `GET` | `/api/products` | Returns all active monitored products with status & prices | `200 OK` (JSON array of products) |
+| `GET` | `/api/products/search` | Live search for Amazon products by name or keywords | `200 OK` (JSON array of Amazon search items) |
 | `POST` | `/api/products` | Adds a new product to monitoring and `products.csv` | `201 Created` / `400 Bad Request` / `409 Conflict` |
 | `PUT` | `/api/products/{id}` | Updates an existing product's name or URL | `200 OK` / `400 Bad Request` / `404 Not Found` |
 | `DELETE` | `/api/products/{id}` | Removes a product from active monitoring | `200 OK` (`{ "status": "success", ... }`) |

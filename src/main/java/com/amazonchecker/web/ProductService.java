@@ -1,5 +1,6 @@
 package com.amazonchecker.web;
 
+import com.amazonchecker.scraper.SearchScraper;
 import com.amazonchecker.utils.CsvHandler;
 import com.amazonchecker.utils.Product;
 import com.amazonchecker.web.dto.*;
@@ -448,5 +449,12 @@ public class ProductService {
             return raw.substring(0, dot);
         }
         return raw;
+    }
+
+    public List<SearchResultResponse> searchProducts(String query) {
+        if (query == null || query.trim().isBlank()) {
+            throw new IllegalArgumentException("Search query cannot be empty");
+        }
+        return SearchScraper.searchProducts(query.trim());
     }
 }

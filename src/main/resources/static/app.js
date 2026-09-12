@@ -52,6 +52,43 @@ const productModalError = document.getElementById("productModalError");
 const productModalErrorMsg = document.getElementById("productModalErrorMsg");
 const saveProductModalBtn = document.getElementById("saveProductModalBtn");
 
+// Smart Add Product (Phase 6) Elements
+const modalModeTabs = document.getElementById("modalModeTabs");
+const tabModeLink = document.getElementById("tabModeLink");
+const tabModeName = document.getElementById("tabModeName");
+const tabModeImage = document.getElementById("tabModeImage");
+const modeLinkSection = document.getElementById("modeLinkSection");
+const modeNameSection = document.getElementById("modeNameSection");
+const modeImageSection = document.getElementById("modeImageSection");
+const productModalSubtitle = document.getElementById("productModalSubtitle");
+
+const searchByNameInput = document.getElementById("searchByNameInput");
+const findProductByNameBtn = document.getElementById("findProductByNameBtn");
+const findProductByNameText = document.getElementById("findProductByNameText");
+
+const imageDropzone = document.getElementById("imageDropzone");
+const productImageFileInput = document.getElementById("productImageFileInput");
+const imagePreviewBox = document.getElementById("imagePreviewBox");
+const imagePreviewImg = document.getElementById("imagePreviewImg");
+const imageFileName = document.getElementById("imageFileName");
+const imageFileSize = document.getElementById("imageFileSize");
+const removeImageBtn = document.getElementById("removeImageBtn");
+const imageDetectedSection = document.getElementById("imageDetectedSection");
+const imageDetectedNameInput = document.getElementById("imageDetectedNameInput");
+const findProductByImageBtn = document.getElementById("findProductByImageBtn");
+const findProductByImageText = document.getElementById("findProductByImageText");
+
+const searchResultsArea = document.getElementById("searchResultsArea");
+const searchResultsCount = document.getElementById("searchResultsCount");
+const searchSpinner = document.getElementById("searchSpinner");
+const searchEmptyState = document.getElementById("searchEmptyState");
+const searchResultsList = document.getElementById("searchResultsList");
+const productModalSuccess = document.getElementById("productModalSuccess");
+const productModalSuccessMsg = document.getElementById("productModalSuccessMsg");
+
+let currentAddMode = "link";
+let currentSearchResults = [];
+
 // Delete Modal Elements
 const deleteModal = document.getElementById("deleteModal");
 const deleteModalBackdrop = document.getElementById("deleteModalBackdrop");
@@ -646,13 +683,92 @@ async function loadGlobalHistory() {
 /**
  * Open Add Product Modal (Feature 1)
  */
+/**
+ * Modal Alert Helpers
+ */
+function showModalError(msg) {
+    if (productModalError && productModalErrorMsg) {
+        productModalErrorMsg.textContent = msg;
+        productModalError.classList.remove("hidden");
+    }
+    if (productModalSuccess) productModalSuccess.classList.add("hidden");
+}
+
+function showModalSuccess(msg) {
+    if (productModalSuccess && productModalSuccessMsg) {
+        productModalSuccessMsg.textContent = msg;
+        productModalSuccess.classList.remove("hidden");
+    }
+    if (productModalError) productModalError.classList.add("hidden");
+}
+
+function clearModalAlerts() {
+    if (productModalError) productModalError.classList.add("hidden");
+    if (productModalSuccess) productModalSuccess.classList.add("hidden");
+}
+
+/**
+ * Switch Smart Add Product Mode (Link, Name, Image)
+ */
+function switchAddProductMode(mode) {
+    currentAddMode = mode;
+    clearModalAlerts();
+
+    if (searchResultsArea) searchResultsArea.classList.add("hidden");
+    if (searchResultsList) searchResultsList.innerHTML = "";
+
+    const tabs = [
+        { btn: tabModeLink, section: modeLinkSection, name: "link" },
+        { btn: tabModeName, section: modeNameSection, name: "name" },
+        { btn: tabModeImage, section: modeImageSection, name: "image" }
+    ];
+
+    tabs.forEach(t => {
+        if (t.btn && t.section) {
+            const isActive = t.name === mode;
+            t.btn.classList.toggle("active", isActive);
+            t.btn.setAttribute("aria-selected", isActive ? "true" : "false");
+            t.section.classList.toggle("hidden", !isActive);
+        }
+    });
+
+    if (mode === "link" && productNameInput) {
+        productNameInput.focus();
+    } else if (mode === "name" && searchByNameInput) {
+        searchByNameInput.focus();
+    }
+}
+
+/**
+ * Open Smart Add Product Modal (Feature 1 & Phase 6)
+ */
 function openAddProductModal() {
     if (!productModal) return;
     if (editProductId) editProductId.value = "";
     if (productNameInput) productNameInput.value = "";
     if (productUrlInput) productUrlInput.value = "";
+    if (searchByNameInput) searchByNameInput.value = "";
+    if (imageDetectedNameInput) imageDetectedNameInput.value = "";
+
+    // Reset Image Dropzone & Preview
+    if (productImageFileInput) productImageFileInput.value = "";
+    if (imagePreviewBox) imagePreviewBox.classList.add("hidden");
+    if (imageDropzone) imageDropzone.classList.remove("hidden");
+    if (imageDetectedSection) imageDetectedSection.classList.add("hidden");
+
+    // Hide search results
+    if (searchResultsArea) searchResultsArea.classList.add("hidden");
+    if (searchResultsList) searchResultsList.innerHTML = "";
+
+    clearModalAlerts();
+
     if (productModalTitle) productModalTitle.textContent = "Add Monitored Product";
-    if (productModalError) productModalError.classList.add("hidden");
+    if (productModalSubtitle) productModalSubtitle.textContent = "Choose how to add your product: by link, search, or image";
+    if (modalModeTabs) modalModeTabs.classList.remove("hidden");
+    if (saveProductModalBtn) saveProductModalBtn.textContent = "Save Product";
+
+    switchAddProductMode("link");
+
     productModal.classList.remove("hidden");
     if (productNameInput) productNameInput.focus();
 }
@@ -666,11 +782,24 @@ function openEditProductModal(id) {
     const product = allProducts.find(p => p.id === id);
     if (!product) return;
 
+    clearModalAlerts();
+
     if (editProductId) editProductId.value = id;
     if (productNameInput) productNameInput.value = product.name || "";
     if (productUrlInput) productUrlInput.value = product.productUrl || "";
+
     if (productModalTitle) productModalTitle.textContent = "Edit Product";
-    if (productModalError) productModalError.classList.add("hidden");
+    if (productModalSubtitle) productModalSubtitle.textContent = "Update product name or Amazon URL";
+    if (modalModeTabs) modalModeTabs.classList.add("hidden");
+
+    // Show only link form
+    if (modeLinkSection) modeLinkSection.classList.remove("hidden");
+    if (modeNameSection) modeNameSection.classList.add("hidden");
+    if (modeImageSection) modeImageSection.classList.add("hidden");
+    if (searchResultsArea) searchResultsArea.classList.add("hidden");
+
+    if (saveProductModalBtn) saveProductModalBtn.textContent = "Update Product";
+
     productModal.classList.remove("hidden");
     if (productNameInput) productNameInput.focus();
 }
@@ -681,12 +810,237 @@ window.openEditProductModal = openEditProductModal;
  */
 function closeProductModal() {
     if (productModal) productModal.classList.add("hidden");
-    if (productModalError) productModalError.classList.add("hidden");
+    clearModalAlerts();
     if (productForm) productForm.reset();
 }
 
 /**
- * Handle Add/Edit Product form submit
+ * Execute real Amazon product search via backend
+ */
+async function executeAmazonSearch(query, triggerBtn, triggerTextEl) {
+    const q = (query || "").trim();
+    if (!q) {
+        showModalError("Please enter a product name or keyword to search.");
+        return;
+    }
+
+    clearModalAlerts();
+    if (triggerBtn) triggerBtn.disabled = true;
+    if (triggerTextEl) triggerTextEl.textContent = "Searching...";
+
+    if (searchResultsArea) searchResultsArea.classList.remove("hidden");
+    if (searchSpinner) searchSpinner.classList.remove("hidden");
+    if (searchEmptyState) searchEmptyState.classList.add("hidden");
+    if (searchResultsList) searchResultsList.innerHTML = "";
+    if (searchResultsCount) searchResultsCount.textContent = "Searching...";
+
+    try {
+        const res = await fetch(`/api/products/search?query=${encodeURIComponent(q)}`);
+        if (!res.ok) {
+            let errorMsg = `Search failed (HTTP ${res.status})`;
+            try {
+                const errData = await res.json();
+                if (errData.message) errorMsg = errData.message;
+            } catch (_) {}
+            throw new Error(errorMsg);
+        }
+
+        const items = await res.json();
+        currentSearchResults = Array.isArray(items) ? items : [];
+
+        if (currentSearchResults.length === 0) {
+            if (searchEmptyState) searchEmptyState.classList.remove("hidden");
+            if (searchResultsCount) searchResultsCount.textContent = "0 results";
+        } else {
+            if (searchEmptyState) searchEmptyState.classList.add("hidden");
+            if (searchResultsCount) searchResultsCount.textContent = `${currentSearchResults.length} result${currentSearchResults.length !== 1 ? 's' : ''}`;
+            renderSearchResults(currentSearchResults);
+        }
+
+    } catch (err) {
+        console.error("Amazon search error:", err);
+        showModalError(err.message || "Failed to search Amazon products");
+        if (searchResultsArea) searchResultsArea.classList.add("hidden");
+    } finally {
+        if (searchSpinner) searchSpinner.classList.add("hidden");
+        if (triggerBtn) triggerBtn.disabled = false;
+        if (triggerTextEl) triggerTextEl.textContent = "Find Product";
+    }
+}
+
+/**
+ * Render real Amazon search result items
+ */
+function renderSearchResults(items) {
+    if (!searchResultsList) return;
+    searchResultsList.innerHTML = "";
+
+    items.forEach((item, index) => {
+        const card = document.createElement("div");
+        card.className = "search-result-card";
+
+        const badgeClass = getBadgeClass(item.availability);
+        const priceDisplay = item.formattedPrice ? item.formattedPrice : (item.price ? '₹' + Number(item.price).toFixed(2) : 'Price on Amazon');
+        const hasImg = Boolean(item.imageUrl && item.imageUrl.trim() !== "");
+
+        card.innerHTML = `
+            <div class="search-result-img-wrapper">
+                ${hasImg ? `
+                    <img src="${escapeHtml(item.imageUrl)}" alt="${escapeHtml(item.name)}" loading="lazy"
+                         onerror="this.style.display='none'; this.nextElementSibling.style.display='block';" />
+                    <svg class="media-placeholder" style="display:none; width:28px; height:28px; color:var(--text-muted);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                ` : `
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color:var(--text-muted);">
+                        <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                        <circle cx="8.5" cy="8.5" r="1.5"></circle>
+                        <polyline points="21 15 16 10 5 21"></polyline>
+                    </svg>
+                `}
+            </div>
+            <div class="search-result-info">
+                <h4 class="search-result-title" title="${escapeHtml(item.name)}">${escapeHtml(item.name)}</h4>
+                <div class="search-result-meta">
+                    <span class="search-result-price">${escapeHtml(priceDisplay)}</span>
+                    <span class="badge ${badgeClass}" style="font-size: 0.72rem; padding: 2px 8px;">${escapeHtml(item.availability || 'IN STOCK')}</span>
+                </div>
+                ${item.url ? `
+                    <a href="${escapeHtml(item.url)}" target="_blank" rel="noopener noreferrer" class="search-result-link">
+                        <span>View on Amazon</span>
+                        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"></path><polyline points="15 3 21 3 21 9"></polyline><line x1="10" y1="14" x2="21" y2="3"></line></svg>
+                    </a>
+                ` : ''}
+            </div>
+            <div class="search-result-action">
+                <button type="button" class="btn btn-primary btn-sm btn-select-product" onclick="selectSearchResult(${index})">
+                    Select Product
+                </button>
+            </div>
+        `;
+
+        searchResultsList.appendChild(card);
+    });
+}
+
+/**
+ * Handle user selecting a search result to monitor
+ */
+async function selectSearchResult(index) {
+    const item = currentSearchResults[index];
+    if (!item) return;
+
+    clearModalAlerts();
+
+    const selectButtons = document.querySelectorAll(".btn-select-product");
+    const targetBtn = selectButtons[index];
+    if (targetBtn) {
+        targetBtn.disabled = true;
+        targetBtn.textContent = "Adding...";
+    }
+
+    try {
+        const res = await fetch("/api/products", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ name: item.name, url: item.url })
+        });
+
+        if (!res.ok) {
+            let errorMsg = `Failed to add product (${res.status})`;
+            try {
+                const errData = await res.json();
+                if (errData.message) errorMsg = errData.message;
+                else if (errData.error) errorMsg = errData.error;
+            } catch (_) {}
+            showModalError(errorMsg);
+            if (targetBtn) {
+                targetBtn.disabled = false;
+                targetBtn.textContent = "Select Product";
+            }
+            return;
+        }
+
+        showModalSuccess(`"${item.name}" added successfully to monitoring!`);
+        setTimeout(() => {
+            closeProductModal();
+            loadDashboardData();
+        }, 700);
+
+    } catch (err) {
+        showModalError("Network error: " + err.message);
+        if (targetBtn) {
+            targetBtn.disabled = false;
+            targetBtn.textContent = "Select Product";
+        }
+    }
+}
+window.selectSearchResult = selectSearchResult;
+
+/**
+ * Handle Product Image File (validation, preview, and smart title extraction)
+ */
+function handleImageFile(file) {
+    if (!file) return;
+
+    clearModalAlerts();
+
+    // 1. Format validation
+    const validTypes = ["image/png", "image/jpeg", "image/jpg", "image/webp"];
+    if (!validTypes.includes(file.type.toLowerCase()) && !file.name.match(/\.(png|jpe?g|webp)$/i)) {
+        showModalError("Unsupported image format. Please upload a PNG, JPG, or WEBP image.");
+        return;
+    }
+
+    // 2. Size validation (max 5MB)
+    const maxSize = 5 * 1024 * 1024;
+    if (file.size > maxSize) {
+        showModalError("Image too large. Maximum allowed size is 5MB.");
+        return;
+    }
+
+    // 3. Image preview via FileReader
+    const reader = new FileReader();
+    reader.onload = (e) => {
+        if (imagePreviewImg) imagePreviewImg.src = e.target.result;
+        if (imagePreviewBox) imagePreviewBox.classList.remove("hidden");
+        if (imageDropzone) imageDropzone.classList.add("hidden");
+
+        const sizeKb = Math.round(file.size / 1024);
+        const sizeStr = sizeKb >= 1024 ? (sizeKb / 1024).toFixed(1) + " MB" : sizeKb + " KB";
+        if (imageFileName) imageFileName.textContent = file.name;
+        if (imageFileSize) imageFileSize.textContent = sizeStr;
+
+        // 4. Intelligent product name extraction from filename
+        let cleanName = file.name
+            .replace(/\.[^/.]+$/, "")             // strip extension
+            .replace(/[_\-]+/g, " ")             // replace underscores and hyphens
+            .replace(/\b\d{8,}\b/g, "")           // strip timestamp numbers like 20260912
+            .replace(/\s+/g, " ")                // collapse multiple spaces
+            .trim();
+
+        // Capitalize first letter of words
+        if (cleanName.length > 2) {
+            cleanName = cleanName.split(" ")
+                .map(w => w.charAt(0).toUpperCase() + w.slice(1))
+                .join(" ");
+        }
+
+        if (imageDetectedNameInput) {
+            imageDetectedNameInput.value = cleanName;
+        }
+        if (imageDetectedSection) {
+            imageDetectedSection.classList.remove("hidden");
+            if (imageDetectedNameInput) imageDetectedNameInput.focus();
+        }
+    };
+    reader.readAsDataURL(file);
+}
+
+/**
+ * Handle Add/Edit Product form submit (Link mode)
  */
 async function handleProductFormSubmit(e) {
     e.preventDefault();
@@ -737,8 +1091,11 @@ async function handleProductFormSubmit(e) {
             return;
         }
 
-        closeProductModal();
-        await loadDashboardData();
+        showModalSuccess(isEdit ? "Product updated successfully!" : "Product added successfully!");
+        setTimeout(() => {
+            closeProductModal();
+            loadDashboardData();
+        }, 600);
 
     } catch (err) {
         showModalError("Network error: " + err.message);
@@ -1152,6 +1509,100 @@ if (cancelProductModalBtn) {
 }
 if (productModalBackdrop) {
     productModalBackdrop.addEventListener("click", closeProductModal);
+}
+
+// Phase 6: Mode Tabs
+if (tabModeLink) {
+    tabModeLink.addEventListener("click", () => switchAddProductMode("link"));
+}
+if (tabModeName) {
+    tabModeName.addEventListener("click", () => switchAddProductMode("name"));
+}
+if (tabModeImage) {
+    tabModeImage.addEventListener("click", () => switchAddProductMode("image"));
+}
+
+// Phase 6: Option 2 - Search by Name
+if (findProductByNameBtn) {
+    findProductByNameBtn.addEventListener("click", () => {
+        const query = searchByNameInput ? searchByNameInput.value : "";
+        executeAmazonSearch(query, findProductByNameBtn, findProductByNameText);
+    });
+}
+if (searchByNameInput) {
+    searchByNameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            executeAmazonSearch(searchByNameInput.value, findProductByNameBtn, findProductByNameText);
+        }
+    });
+}
+
+// Phase 6: Option 3 - Image Upload & Dropzone
+if (imageDropzone && productImageFileInput) {
+    imageDropzone.addEventListener("click", () => {
+        productImageFileInput.click();
+    });
+
+    imageDropzone.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        imageDropzone.classList.add("dragover");
+    });
+
+    imageDropzone.addEventListener("dragenter", (e) => {
+        e.preventDefault();
+        imageDropzone.classList.add("dragover");
+    });
+
+    imageDropzone.addEventListener("dragleave", (e) => {
+        e.preventDefault();
+        imageDropzone.classList.remove("dragover");
+    });
+
+    imageDropzone.addEventListener("drop", (e) => {
+        e.preventDefault();
+        imageDropzone.classList.remove("dragover");
+        if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+            handleImageFile(e.dataTransfer.files[0]);
+        }
+    });
+}
+
+if (productImageFileInput) {
+    productImageFileInput.addEventListener("change", (e) => {
+        if (e.target.files && e.target.files.length > 0) {
+            handleImageFile(e.target.files[0]);
+        }
+    });
+}
+
+if (removeImageBtn) {
+    removeImageBtn.addEventListener("click", () => {
+        if (productImageFileInput) productImageFileInput.value = "";
+        if (imagePreviewBox) imagePreviewBox.classList.add("hidden");
+        if (imagePreviewImg) imagePreviewImg.src = "";
+        if (imageDropzone) imageDropzone.classList.remove("hidden");
+        if (imageDetectedSection) imageDetectedSection.classList.add("hidden");
+        if (imageDetectedNameInput) imageDetectedNameInput.value = "";
+        if (searchResultsArea) searchResultsArea.classList.add("hidden");
+        if (searchResultsList) searchResultsList.innerHTML = "";
+        currentSearchResults = [];
+    });
+}
+
+if (findProductByImageBtn) {
+    findProductByImageBtn.addEventListener("click", () => {
+        const query = imageDetectedNameInput ? imageDetectedNameInput.value : "";
+        executeAmazonSearch(query, findProductByImageBtn, findProductByImageText);
+    });
+}
+if (imageDetectedNameInput) {
+    imageDetectedNameInput.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault();
+            executeAmazonSearch(imageDetectedNameInput.value, findProductByImageBtn, findProductByImageText);
+        }
+    });
 }
 
 // Delete Confirmation Modal

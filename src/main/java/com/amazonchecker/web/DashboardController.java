@@ -33,6 +33,14 @@ public class DashboardController {
         return productService.getProducts();
     }
 
+    @GetMapping(value = "/products/search", produces = MediaType.APPLICATION_JSON_VALUE)
+    public List<SearchResultResponse> searchProducts(@RequestParam(value = "query", required = false) String query) {
+        if (query == null || query.trim().isBlank()) {
+            throw new IllegalArgumentException("Search query cannot be empty");
+        }
+        return productService.searchProducts(query);
+    }
+
     @PostMapping(value = "/products", consumes = MediaType.APPLICATION_JSON_VALUE, produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<ProductResponse> addProduct(@RequestBody ProductRequest request) throws IOException {
         ProductResponse created = productService.addProduct(request);

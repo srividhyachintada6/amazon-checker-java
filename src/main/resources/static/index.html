@@ -4,89 +4,223 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-    <title>Amazon Availability Checker</title>
-
+    <title>Amazon Product Monitoring</title>
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header class="header">
+<header class="navbar">
+    <div class="header-container">
+        <div class="brand">
+            <div class="brand-icon">
+                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="9" cy="21" r="1"></circle>
+                    <circle cx="20" cy="21" r="1"></circle>
+                    <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
+                </svg>
+            </div>
+            <div>
+                <h1 class="brand-title">Amazon Product Monitoring</h1>
+                <p class="brand-subtitle">Track availability and prices automatically</p>
+            </div>
+        </div>
 
-    <div>
-        <h1>🛒 Amazon Availability Checker</h1>
-        <p>Check product availability and price automatically</p>
+        <div id="status" class="status ready">
+            <span class="status-indicator"></span>
+            <span id="statusText">Ready</span>
+        </div>
     </div>
-
-    <div id="status" class="status ready">
-        ● Ready
-    </div>
-
 </header>
-
 
 <main class="container">
 
-    <section class="hero">
+    <!-- Error Banner -->
+    <div id="errorBanner" class="alert alert-danger hidden">
+        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="10"></circle>
+            <line x1="12" y1="8" x2="12" y2="12"></line>
+            <line x1="12" y1="16" x2="12.01" y2="16"></line>
+        </svg>
+        <span id="errorMessage">Unable to connect to the backend service. Please ensure the server is running.</span>
+    </div>
 
-        <div>
-            <h2>Amazon Product Monitor</h2>
-
-            <p>
-                Check all products from your products.csv file.
-                Results are collected by the Java Amazon checker.
-            </p>
+    <!-- Summary KPI Cards -->
+    <section class="summary-grid" aria-label="Summary Statistics">
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-blue">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Total Products</span>
+                <span id="statTotal" class="stat-value">0</span>
+            </div>
         </div>
 
-        <button id="checkButton">
-            🔍 Check All Products
-        </button>
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-green">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">In Stock</span>
+                <span id="statInStock" class="stat-value">0</span>
+            </div>
+        </div>
 
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-red">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <line x1="15" y1="9" x2="9" y2="15"></line>
+                    <line x1="9" y1="9" x2="15" y2="15"></line>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Out of Stock</span>
+                <span id="statOutOfStock" class="stat-value">0</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-purple">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Last Check</span>
+                <span id="statLastCheck" class="stat-value stat-value-time">Never</span>
+            </div>
+        </div>
     </section>
 
+    <!-- Main Section -->
+    <section class="panel">
+        <div class="panel-header">
+            <div>
+                <h2 class="panel-title">Product Monitoring</h2>
+                <p class="panel-subtitle">Real-time availability and pricing from monitored Amazon products</p>
+            </div>
 
-    <section class="card">
+            <div class="panel-actions">
+                <button id="checkButton" class="btn btn-primary">
+                    <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span id="checkButtonText">Check All Products</span>
+                </button>
 
-        <div class="card-header">
+                <button id="refreshButton" class="btn btn-secondary" title="Reload latest data">
+                    <svg class="btn-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                        <polyline points="23 4 23 10 17 10"></polyline>
+                        <polyline points="1 20 1 14 7 14"></polyline>
+                        <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+                    </svg>
+                    <span>Refresh</span>
+                </button>
+            </div>
+        </div>
 
-            <h2>Availability Results</h2>
+        <!-- In-Progress Checking Notice -->
+        <div id="checkingNotice" class="checking-banner hidden">
+            <div class="spinner"></div>
+            <div>
+                <strong>Checking Amazon products...</strong>
+                <p>Scraping availability and current prices from Amazon. This may take a few moments.</p>
+            </div>
+        </div>
 
-            <button id="refreshButton">
-                ↻ Refresh
+        <!-- Product Cards Grid -->
+        <div id="productGrid" class="product-grid">
+            <!-- Dynamically populated from real log data -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="emptyState" class="empty-state hidden">
+            <div class="empty-state-icon">
+                <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path>
+                    <line x1="3" y1="6" x2="21" y2="6"></line>
+                    <path d="M16 10a4 4 0 0 1-8 0"></path>
+                </svg>
+            </div>
+            <h3 class="empty-state-title">No availability results yet</h3>
+            <p class="empty-state-text">Run your first product check to inspect product availability and prices.</p>
+            <button class="btn btn-primary" onclick="document.getElementById('checkButton').click()">
+                Start First Check
             </button>
-
         </div>
-
-        <pre id="results">
-No results loaded yet.
-
-Click "Check All Products" to start checking Amazon.
-        </pre>
-
     </section>
 
+    <!-- Activity Log Section (Preserving existing log display) -->
+    <section class="card log-card">
+        <div class="card-header">
+            <div>
+                <h3 class="card-title">Availability Activity Log</h3>
+                <p class="card-subtitle">Real-time log recorded to <code>data/availability_log.txt</code></p>
+            </div>
+            <button id="toggleLogButton" class="btn btn-ghost btn-sm">Hide Log</button>
+        </div>
 
+        <div id="logContainer">
+            <pre id="results">No results loaded yet.
+
+Click "Check All Products" to start checking Amazon.</pre>
+        </div>
+    </section>
+
+    <!-- Info Grid -->
     <section class="info-grid">
-
         <div class="info-card">
-            <span>📁</span>
-            <h3>Product Source</h3>
-            <p>data/products.csv</p>
+            <div class="info-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                    <polyline points="14 2 14 8 20 8"></polyline>
+                    <line x1="16" y1="13" x2="8" y2="13"></line>
+                    <line x1="16" y1="17" x2="8" y2="17"></line>
+                </svg>
+            </div>
+            <div class="info-text">
+                <h4>Product Source</h4>
+                <p>data/products.csv</p>
+            </div>
         </div>
 
         <div class="info-card">
-            <span>📊</span>
-            <h3>Results</h3>
-            <p>data/availability_log.txt</p>
+            <div class="info-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <line x1="18" y1="20" x2="18" y2="10"></line>
+                    <line x1="12" y1="20" x2="12" y2="4"></line>
+                    <line x1="6" y1="20" x2="6" y2="14"></line>
+                </svg>
+            </div>
+            <div class="info-text">
+                <h4>Results Log</h4>
+                <p>data/availability_log.txt</p>
+            </div>
         </div>
 
         <div class="info-card">
-            <span>📸</span>
-            <h3>Screenshots</h3>
-            <p>screenshots/</p>
+            <div class="info-icon">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                    <circle cx="12" cy="13" r="4"></circle>
+                </svg>
+            </div>
+            <div class="info-text">
+                <h4>Screenshots</h4>
+                <p>screenshots/</p>
+            </div>
         </div>
-
     </section>
 
 </main>

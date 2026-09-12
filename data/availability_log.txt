@@ -4,3 +4,11 @@
 2026-09-12T09:37:29.428778800 | red tape men pull on clogs | IN STOCK | 2999
 2026-09-12T09:44:29.159791600 | Amazon Basics HDMI Cable | IN STOCK | 369.00
 2026-09-12T09:44:53.357199 | red tape men pull on clogs | IN STOCK | 2999
+2026-09-12T10:10:30.319239700 | Amazon Basics HDMI Cable | IN STOCK | 369.00
+2026-09-12T10:10:50.664131 | red tape men pull on clogs | IN STOCK | 2999
+2026-09-12T10:18:22.101762400 | Amazon Basics HDMI Cable | IN STOCK | 369.00
+2026-09-12T10:18:42.351726900 | red tape men pull on clogs | IN STOCK | 2999
+2026-09-12T10:20:30.420856700 | Amazon Basics HDMI Cable | IN STOCK | 699.00
+2026-09-12T10:20:50.965156900 | red tape men pull on clogs | IN STOCK | 2999
+2026-09-12T10:33:07.667616200 | Amazon Basics HDMI Cable | IN STOCK | 369.00
+2026-09-12T10:33:33.689950500 | red tape men pull on clogs | IN STOCK | 2999

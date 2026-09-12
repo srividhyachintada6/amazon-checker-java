@@ -4,48 +4,56 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Amazon Product Monitoring</title>
+    <title>Amazon Product Monitoring | Availability &amp; Price Tracker</title>
+    <meta name="description" content="Track product availability and prices automatically across Amazon and Flipkart with instant check controls and historical auditing.">
     <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<header class="navbar">
+<!-- Amazon-Style Top Navigation Bar -->
+<header class="navbar" role="banner">
     <div class="header-container">
         <div class="brand">
-            <div class="brand-icon">
-                <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <div class="brand-icon" aria-hidden="true">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                     <circle cx="9" cy="21" r="1"></circle>
                     <circle cx="20" cy="21" r="1"></circle>
                     <path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
                 </svg>
             </div>
-            <div>
+            <div class="brand-text">
                 <h1 class="brand-title">Amazon Product Monitoring</h1>
-                <p class="brand-subtitle">Track availability and prices automatically</p>
+                <span class="brand-subtitle">Track availability and prices automatically</span>
             </div>
         </div>
 
         <div class="header-actions">
-            <button id="apiConfigBtn" class="btn btn-api-config" title="Configure Cloud Backend API URL">
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="3"></circle>
-                    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
-                </svg>
-                <span id="apiEndpointBadge">API: Local</span>
+            <!-- Redesigned API Connection Indicator -->
+            <button id="apiConfigBtn" class="api-status-badge" title="Click to configure Spring Boot Cloud Backend URL" aria-label="Backend API Connection Status">
+                <span id="status" class="status ready">
+                    <span class="status-indicator"></span>
+                    <span id="statusText" class="status-text-main">API Connected</span>
+                </span>
+                <span id="apiEndpointBadge" class="api-endpoint-text">Spring Boot connected</span>
             </button>
-            <div id="status" class="status ready">
-                <span class="status-indicator"></span>
-                <span id="statusText">Ready</span>
-            </div>
+
+            <!-- Quick Header Action (Add Product) -->
+            <button class="btn btn-header-add" onclick="document.getElementById('addProductButton').click()" title="Add a product to track" aria-label="Add product">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                    <line x1="12" y1="5" x2="12" y2="19"></line>
+                    <line x1="5" y1="12" x2="19" y2="12"></line>
+                </svg>
+                <span>Add Product</span>
+            </button>
         </div>
     </div>
 </header>
 
-<main class="container">
+<main class="container" role="main">
 
     <!-- Error Banner -->
-    <div id="errorBanner" class="alert alert-danger hidden">
+    <div id="errorBanner" class="alert alert-danger hidden" role="alert">
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <circle cx="12" cy="12" r="10"></circle>
             <line x1="12" y1="8" x2="12" y2="12"></line>
@@ -54,152 +62,172 @@
         <span id="errorMessage">Unable to connect to the backend service. Please ensure the server is running.</span>
     </div>
 
-    <!-- Summary KPI Cards -->
-    <section class="summary-grid" aria-label="Summary Statistics">
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-blue">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
-                    <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
-                    <line x1="12" y1="22.08" x2="12" y2="12"></line>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Total Products</span>
-                <span id="statTotal" class="stat-value">0</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-green">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
-                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">In Stock</span>
-                <span id="statInStock" class="stat-value">0</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-red">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <line x1="15" y1="9" x2="9" y2="15"></line>
-                    <line x1="9" y1="9" x2="15" y2="15"></line>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Out of Stock</span>
-                <span id="statOutOfStock" class="stat-value">0</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-cyan">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
-                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Stores Monitored</span>
-                <span id="statStoresMonitored" class="stat-value">2</span>
-                <span id="statStoresList" class="stat-subtext">Amazon, Flipkart</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-purple">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Last Check</span>
-                <span id="statLastCheck" class="stat-value stat-value-time">Never</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-amber">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <circle cx="12" cy="12" r="10"></circle>
-                    <polyline points="12 6 12 12 16 14"></polyline>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Next Check</span>
-                <span id="statNextCheck" class="stat-value stat-value-time">30m</span>
+    <!-- 1. Hero Section (Compact & Professional) -->
+    <section class="hero-card" aria-label="Project Overview">
+        <div class="hero-left">
+            <div class="hero-badge">Automated Multi-Store Tracking</div>
+            <h2 class="hero-heading">Amazon Product Monitoring</h2>
+            <p class="hero-tagline">Track product availability and prices automatically.</p>
+            <p class="hero-description">
+                Real-time automated price and stock monitoring across Amazon and Flipkart. Detect price drops, inspect verified screenshots, and compare cross-store listings effortlessly.
+            </p>
+            <div class="hero-buttons">
+                <button id="heroCheckButton" class="btn btn-primary" onclick="document.getElementById('checkButton').click()" title="Check all monitored products now">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                        <circle cx="11" cy="11" r="8"></circle>
+                        <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+                    </svg>
+                    <span>Check Products</span>
+                </button>
+                <button class="btn btn-secondary" onclick="document.getElementById('addProductButton').click()" title="Add product by link, name, or image">
+                    <svg class="btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="12" y1="5" x2="12" y2="19"></line>
+                        <line x1="5" y1="12" x2="19" y2="12"></line>
+                    </svg>
+                    <span>Add Product</span>
+                </button>
+                <button class="btn btn-outline" onclick="document.getElementById('comparePricesBtn').click()" title="Compare prices across Amazon and Flipkart">
+                    <svg class="btn-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                    <span>Compare Stores</span>
+                </button>
             </div>
         </div>
     </section>
 
-    <!-- Automatic Monitoring Section -->
-    <section class="monitoring-panel" aria-label="Automatic Monitoring Status">
-        <div class="monitoring-content">
-            <div class="monitoring-info-block">
-                <div class="monitoring-icon-wrapper">
-                    <span class="monitoring-pulse-ring"></span>
-                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <circle cx="12" cy="12" r="10"></circle>
-                        <polyline points="12 6 12 12 16 14"></polyline>
-                    </svg>
-                </div>
-                <div>
-                    <div class="monitoring-heading-row">
-                        <h3 class="monitoring-title">Automatic Monitoring</h3>
-                        <span id="autoMonitoringBadge" class="badge badge-auto-enabled">● Enabled</span>
+    <!-- 2. Monitoring Summary (Four Clean KPI Cards) -->
+    <section class="summary-section" aria-label="Monitoring Statistics">
+        <div class="summary-grid">
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Total Products</span>
+                    <div class="stat-icon stat-icon-navy">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"></path>
+                            <polyline points="3.27 6.96 12 12.01 20.73 6.96"></polyline>
+                            <line x1="12" y1="22.08" x2="12" y2="12"></line>
+                        </svg>
                     </div>
-                    <p class="monitoring-subtitle">
-                        Periodic background checks active every <strong id="autoIntervalText">30 minutes</strong>
-                    </p>
+                </div>
+                <div class="stat-body">
+                    <span id="statTotal" class="stat-value">0</span>
+                    <span class="stat-subtext">Active items tracked</span>
                 </div>
             </div>
 
-            <div class="monitoring-action-block">
-                <div class="next-check-box">
-                    <span class="next-check-label">Next check:</span>
-                    <span id="nextCheckCountdown" class="next-check-val">30 minutes</span>
-                    <span id="nextCheckDetail" class="next-check-detail"></span>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">In Stock</span>
+                    <div class="stat-icon stat-icon-green">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+                            <polyline points="20 6 9 17 4 12"></polyline>
+                        </svg>
+                    </div>
                 </div>
+                <div class="stat-body">
+                    <span id="statInStock" class="stat-value stat-value-green">0</span>
+                    <span class="stat-subtext">Available to purchase</span>
+                </div>
+            </div>
 
-                <button id="toggleSchedulerBtn" class="btn btn-outline btn-sm" title="Toggle automatic background monitoring">
-                    <span id="toggleSchedulerText">Disable Auto-Check</span>
-                </button>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Out of Stock</span>
+                    <div class="stat-icon stat-icon-red">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <circle cx="12" cy="12" r="10"></circle>
+                            <line x1="15" y1="9" x2="9" y2="15"></line>
+                            <line x1="9" y1="9" x2="15" y2="15"></line>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-body">
+                    <span id="statOutOfStock" class="stat-value stat-value-red">0</span>
+                    <span class="stat-subtext">Unavailable / sold out</span>
+                </div>
+            </div>
 
-                <button id="runCheckNowButton" class="btn btn-primary btn-run-now" title="Trigger an immediate Amazon check">
-                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <polygon points="5 3 19 12 5 21 5 3"></polygon>
-                    </svg>
-                    <span id="runCheckNowText">Run Check Now</span>
-                </button>
+            <div class="stat-card">
+                <div class="stat-header">
+                    <span class="stat-label">Stores Monitored</span>
+                    <div class="stat-icon stat-icon-orange">
+                        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+                        </svg>
+                    </div>
+                </div>
+                <div class="stat-body">
+                    <span id="statStoresMonitored" class="stat-value">2</span>
+                    <span id="statStoresList" class="stat-subtext">Amazon, Flipkart</span>
+                </div>
             </div>
         </div>
     </section>
 
-    <!-- Main Section -->
-    <section class="panel">
-        <div class="panel-header">
+    <!-- 3. Automatic Monitoring Section (Clean, Compact Status Row) -->
+    <section class="monitoring-bar" aria-label="Automatic Monitoring Status">
+        <div class="monitoring-bar-left">
+            <div class="monitoring-status-pill">
+                <span class="pulse-indicator"></span>
+                <span class="monitoring-bar-label">Automatic Monitoring</span>
+                <span id="autoMonitoringBadge" class="badge badge-auto-enabled">● Active</span>
+            </div>
+            <div class="monitoring-meta-group">
+                <div class="meta-item">
+                    <span class="meta-label">Last Check:</span>
+                    <strong id="statLastCheck" class="meta-value">Never</strong>
+                </div>
+                <span class="meta-separator" aria-hidden="true">&bull;</span>
+                <div class="meta-item">
+                    <span class="meta-label">Next Check:</span>
+                    <strong id="statNextCheck" class="meta-value">30m</strong>
+                    <span id="nextCheckCountdown" class="meta-countdown">(30 minutes)</span>
+                    <span id="nextCheckDetail" class="meta-detail"></span>
+                </div>
+                <span class="meta-separator" aria-hidden="true">&bull;</span>
+                <div class="meta-item">
+                    <span class="meta-label">Interval:</span>
+                    <strong id="autoIntervalText" class="meta-value">30 minutes</strong>
+                </div>
+            </div>
+        </div>
+
+        <div class="monitoring-bar-actions">
+            <button id="toggleSchedulerBtn" class="btn btn-secondary btn-sm" title="Enable or disable background automatic checking">
+                <span id="toggleSchedulerText">Disable Auto-Check</span>
+            </button>
+            <button id="runCheckNowButton" class="btn btn-primary btn-sm btn-run-now" title="Trigger an immediate check">
+                <svg class="btn-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="5 3 19 12 5 21 5 3"></polygon>
+                </svg>
+                <span id="runCheckNowText">Run Check Now</span>
+            </button>
+        </div>
+    </section>
+
+    <!-- 4. Product Monitoring Section (Main Focus) -->
+    <section class="products-section" aria-label="Monitored Products List">
+        <div class="section-header">
             <div>
-                <h2 class="panel-title">Product Monitoring</h2>
-                <p class="panel-subtitle">Real-time availability and pricing from monitored Amazon products</p>
+                <h2 class="section-title">Product Monitoring</h2>
+                <p class="section-subtitle">Real-time availability and prices across monitored stores</p>
             </div>
 
-            <div class="panel-actions">
+            <div class="section-actions">
                 <button id="addProductButton" class="btn btn-primary" title="Add a new product to monitor">
-                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
                         <line x1="12" y1="5" x2="12" y2="19"></line>
                         <line x1="5" y1="12" x2="19" y2="12"></line>
                     </svg>
                     <span>Add Product</span>
                 </button>
 
-                <button id="comparePricesBtn" class="btn btn-outline" title="Compare prices across Amazon and Flipkart">
-                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="comparePricesBtn" class="btn btn-secondary" title="Compare prices across Amazon and Flipkart">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <line x1="18" y1="20" x2="18" y2="10"></line>
                         <line x1="12" y1="20" x2="12" y2="4"></line>
                         <line x1="6" y1="20" x2="6" y2="14"></line>
@@ -207,84 +235,81 @@
                     <span>Compare Prices</span>
                 </button>
 
-                <button id="checkButton" class="btn btn-outline">
-                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="checkButton" class="btn btn-secondary" title="Scan and check all active products">
+                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
                     <span id="checkButtonText">Check All Products</span>
                 </button>
 
-                <button id="refreshButton" class="btn btn-secondary" title="Reload latest data">
-                    <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <button id="refreshButton" class="btn btn-ghost btn-icon-only" title="Reload latest data" aria-label="Refresh data">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                         <polyline points="23 4 23 10 17 10"></polyline>
                         <polyline points="1 20 1 14 7 14"></polyline>
                         <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
                     </svg>
-                    <span>Refresh</span>
                 </button>
             </div>
         </div>
 
-        <!-- Controls Toolbar: Search, Store Filter, Status Filter, Sort (Features 2, 3, 4 & Phase 9) -->
-        <div class="panel-toolbar">
-            <div class="search-box">
-                <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <!-- Clean Controls Toolbar: Search, Store Filter, Status Filter, Sort -->
+        <div class="filter-toolbar">
+            <div class="search-field-container">
+                <svg class="search-field-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
                     <circle cx="11" cy="11" r="8"></circle>
                     <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                 </svg>
-                <input type="text" id="searchInput" class="search-input" placeholder="Search products by name..." aria-label="Search products" autocomplete="off" />
+                <input type="text" id="searchInput" class="search-field-input" placeholder="Search products by name..." aria-label="Search products" autocomplete="off" />
                 <button id="clearSearchButton" class="btn-clear-search hidden" aria-label="Clear search" title="Clear search">&times;</button>
             </div>
 
-            <!-- Store Filter Pills (Phase 9) -->
-            <div class="store-filter-pills" role="tablist" aria-label="Filter products by store">
-                <button class="store-pill active" data-store="all" role="tab" aria-selected="true">
-                    All Stores
-                </button>
-                <button class="store-pill store-pill-amazon" data-store="AMAZON" role="tab" aria-selected="false">
-                    Amazon
-                </button>
-                <button class="store-pill store-pill-flipkart" data-store="FLIPKART" role="tab" aria-selected="false">
-                    Flipkart
-                </button>
-            </div>
+            <div class="toolbar-controls-group">
+                <!-- Store Filter Pills -->
+                <div class="store-pills-group" role="tablist" aria-label="Filter products by store">
+                    <button class="store-pill active" data-store="all" role="tab" aria-selected="true">All Stores</button>
+                    <button class="store-pill store-pill-amazon" data-store="AMAZON" role="tab" aria-selected="false">Amazon</button>
+                    <button class="store-pill store-pill-flipkart" data-store="FLIPKART" role="tab" aria-selected="false">Flipkart</button>
+                </div>
 
-            <div class="filter-pills" role="tablist" aria-label="Filter products">
-                <button class="filter-pill active" data-filter="all" role="tab" aria-selected="true">
-                    All <span class="pill-count" id="countFilterAll">0</span>
-                </button>
-                <button class="filter-pill" data-filter="instock" role="tab" aria-selected="false">
-                    In Stock <span class="pill-count" id="countFilterInStock">0</span>
-                </button>
-                <button class="filter-pill" data-filter="outofstock" role="tab" aria-selected="false">
-                    Out of Stock <span class="pill-count" id="countFilterOutOfStock">0</span>
-                </button>
-                <button class="filter-pill" data-filter="errors" role="tab" aria-selected="false">
-                    Errors <span class="pill-count" id="countFilterErrors">0</span>
-                </button>
-            </div>
+                <!-- Status Filter Pills -->
+                <div class="status-pills-group" role="tablist" aria-label="Filter by availability status">
+                    <button class="filter-pill active" data-filter="all" role="tab" aria-selected="true">
+                        All <span class="pill-count" id="countFilterAll">0</span>
+                    </button>
+                    <button class="filter-pill" data-filter="instock" role="tab" aria-selected="false">
+                        In Stock <span class="pill-count" id="countFilterInStock">0</span>
+                    </button>
+                    <button class="filter-pill" data-filter="outofstock" role="tab" aria-selected="false">
+                        Out of Stock <span class="pill-count" id="countFilterOutOfStock">0</span>
+                    </button>
+                    <button class="filter-pill" data-filter="errors" role="tab" aria-selected="false">
+                        Errors <span class="pill-count" id="countFilterErrors">0</span>
+                    </button>
+                </div>
 
-            <div class="sort-box">
-                <label for="sortSelect" class="sort-label">Sort:</label>
-                <select id="sortSelect" class="sort-select" aria-label="Sort products">
-                    <option value="time-desc" selected>Newest Checked</option>
-                    <option value="time-asc">Oldest Checked</option>
-                    <option value="newest-added">Newest Added</option>
-                    <option value="price-asc">Price: Low to High</option>
-                    <option value="price-desc">Price: High to Low</option>
-                    <option value="name-asc">Name (A-Z)</option>
-                    <option value="name-desc">Name (Z-A)</option>
-                </select>
+                <!-- Sort Control -->
+                <div class="sort-control">
+                    <label for="sortSelect" class="sort-label">Sort:</label>
+                    <select id="sortSelect" class="sort-select" aria-label="Sort products">
+                        <option value="time-desc" selected>Newest Checked</option>
+                        <option value="time-asc">Oldest Checked</option>
+                        <option value="newest-added">Newest Added</option>
+                        <option value="price-asc">Price: Low to High</option>
+                        <option value="price-desc">Price: High to Low</option>
+                        <option value="name-asc">Name (A-Z)</option>
+                        <option value="name-desc">Name (Z-A)</option>
+                    </select>
+                </div>
             </div>
         </div>
 
         <!-- In-Progress Checking Notice -->
-        <div id="checkingNotice" class="checking-banner hidden">
+        <div id="checkingNotice" class="checking-banner hidden" role="status" aria-live="polite">
             <div class="spinner"></div>
             <div>
-                <strong>Checking Amazon products...</strong>
-                <p>Scraping availability and current prices from Amazon. This may take a few moments.</p>
+                <strong>Checking monitored products...</strong>
+                <p>Scraping availability and current prices. This may take a few moments.</p>
             </div>
         </div>
 
@@ -296,11 +321,11 @@
         </div>
 
         <!-- Product Cards Grid -->
-        <div id="productGrid" class="product-grid">
+        <div id="productGrid" class="product-grid" aria-label="Products">
             <!-- Dynamically populated from real products -->
         </div>
 
-        <!-- Search / Filter No Match Empty State -->
+        <!-- No Matching Search Results -->
         <div id="noSearchMatch" class="empty-state hidden">
             <div class="empty-state-icon">
                 <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -314,7 +339,7 @@
             <button id="resetFiltersButton" class="btn btn-secondary btn-sm">Reset Filters</button>
         </div>
 
-        <!-- Empty State -->
+        <!-- Empty State (No Products Added Yet) -->
         <div id="emptyState" class="empty-state hidden">
             <div class="empty-state-icon">
                 <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
@@ -323,20 +348,20 @@
                     <path d="M16 10a4 4 0 0 1-8 0"></path>
                 </svg>
             </div>
-            <h3 class="empty-state-title">No availability results yet</h3>
-            <p class="empty-state-text">Run your first product check to inspect product availability and prices.</p>
-            <button class="btn btn-primary" onclick="document.getElementById('checkButton').click()">
-                Start First Check
+            <h3 class="empty-state-title">No products monitored yet</h3>
+            <p class="empty-state-text">Add your first product to begin automatic availability and price tracking.</p>
+            <button class="btn btn-primary" onclick="document.getElementById('addProductButton').click()">
+                Add Your First Product
             </button>
         </div>
     </section>
 
-    <!-- Global Monitoring History Section (Feature 6) -->
+    <!-- 5. Recent Monitoring Activity Table -->
     <section class="card history-section" aria-label="Global Monitoring History">
         <div class="card-header">
             <div>
                 <h3 class="card-title">Recent Monitoring Activity</h3>
-                <p class="card-subtitle">Chronological audit of recent product checks, availability, and prices from Amazon</p>
+                <p class="card-subtitle">Chronological audit of recent product checks, availability, and recorded prices</p>
             </div>
             <button id="refreshHistoryBtn" class="btn btn-ghost btn-sm" title="Refresh recent activity">
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -368,7 +393,7 @@
         </div>
     </section>
 
-    <!-- Activity Log Section (Preserving existing log display, collapsed by default) -->
+    <!-- 6. Collapsible Raw Activity Log Drawer -->
     <section class="card log-card">
         <div class="card-header">
             <div>
@@ -383,54 +408,59 @@
         </div>
     </section>
 
-    <!-- Info Grid -->
-    <section class="info-grid">
-        <div class="info-card">
-            <div class="info-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
-                    <polyline points="14 2 14 8 20 8"></polyline>
-                    <line x1="16" y1="13" x2="8" y2="13"></line>
-                    <line x1="16" y1="17" x2="8" y2="17"></line>
-                </svg>
+    <!-- 7. Architecture / Project Info Cards -->
+    <footer class="info-footer">
+        <div class="info-grid">
+            <div class="info-card">
+                <div class="info-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+                        <polyline points="14 2 14 8 20 8"></polyline>
+                        <line x1="16" y1="13" x2="8" y2="13"></line>
+                        <line x1="16" y1="17" x2="8" y2="17"></line>
+                    </svg>
+                </div>
+                <div class="info-text">
+                    <h4>Product Definitions</h4>
+                    <p>PostgreSQL / <code>data/products.csv</code></p>
+                </div>
             </div>
-            <div class="info-text">
-                <h4>Product Source</h4>
-                <p>data/products.csv</p>
-            </div>
-        </div>
 
-        <div class="info-card">
-            <div class="info-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <line x1="18" y1="20" x2="18" y2="10"></line>
-                    <line x1="12" y1="20" x2="12" y2="4"></line>
-                    <line x1="6" y1="20" x2="6" y2="14"></line>
-                </svg>
+            <div class="info-card">
+                <div class="info-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <line x1="18" y1="20" x2="18" y2="10"></line>
+                        <line x1="12" y1="20" x2="12" y2="4"></line>
+                        <line x1="6" y1="20" x2="6" y2="14"></line>
+                    </svg>
+                </div>
+                <div class="info-text">
+                    <h4>Audit History</h4>
+                    <p>PostgreSQL / <code>data/availability_log.txt</code></p>
+                </div>
             </div>
-            <div class="info-text">
-                <h4>Results Log</h4>
-                <p>data/availability_log.txt</p>
-            </div>
-        </div>
 
-        <div class="info-card">
-            <div class="info-icon">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                    <circle cx="12" cy="13" r="4"></circle>
-                </svg>
-            </div>
-            <div class="info-text">
-                <h4>Screenshots</h4>
-                <p>screenshots/</p>
+            <div class="info-card">
+                <div class="info-icon">
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
+                        <circle cx="12" cy="13" r="4"></circle>
+                    </svg>
+                </div>
+                <div class="info-text">
+                    <h4>Verified Screenshots</h4>
+                    <p>Selenium Headless Chrome in <code>screenshots/</code></p>
+                </div>
             </div>
         </div>
-    </section>
+        <p class="footer-copyright">
+            Amazon Product Monitoring &bull; Academic &amp; Portfolio Project &bull; Java 17, Spring Boot 3, Jsoup, Selenium &amp; PostgreSQL
+        </p>
+    </footer>
 
 </main>
 
-<!-- Smart Add / Edit Product Modal (Feature 1 & Phase 6) -->
+<!-- Smart Add / Edit Product Modal -->
 <div id="productModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="productModalTitle">
     <div class="modal-backdrop" id="productModalBackdrop"></div>
     <div class="modal-content modal-form smart-modal">
@@ -589,17 +619,17 @@
                 </div>
             </div>
 
-            <!-- Amazon Search Results Area (Used by Name & Image modes) -->
+            <!-- Store Search Results Area (Used by Name & Image modes) -->
             <div id="searchResultsArea" class="search-results-area hidden">
                 <div class="search-results-header">
-                    <h4 class="search-results-title">Amazon Search Results</h4>
+                    <h4 class="search-results-title">Search Results</h4>
                     <span id="searchResultsCount" class="badge badge-ready">0 results</span>
                 </div>
 
                 <!-- Searching Spinner -->
                 <div id="searchSpinner" class="search-loading hidden">
                     <div class="spinner"></div>
-                    <span>Searching Amazon for matching products...</span>
+                    <span>Searching for matching products...</span>
                 </div>
 
                 <!-- Empty Search Results -->
@@ -608,7 +638,7 @@
                         <circle cx="11" cy="11" r="8"></circle>
                         <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
                     </svg>
-                    <p>No products found on Amazon matching your query. Please try different keywords or use direct product link mode.</p>
+                    <p>No products found matching your query. Please try different keywords or use direct product link mode.</p>
                 </div>
 
                 <!-- Search Results Scrollable List -->
@@ -620,7 +650,7 @@
     </div>
 </div>
 
-<!-- Delete Confirmation Modal (Feature 1) -->
+<!-- Delete Confirmation Modal -->
 <div id="deleteModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="deleteModalTitle">
     <div class="modal-backdrop" id="deleteModalBackdrop"></div>
     <div class="modal-content modal-confirm">
@@ -635,7 +665,7 @@
         </div>
         <div class="modal-body">
             <p>Are you sure you want to remove <strong id="deleteProductName">this product</strong> from active monitoring?</p>
-            <p class="modal-subtext">This product will be removed from <code>data/products.csv</code>. Prior check history will remain in logs.</p>
+            <p class="modal-subtext">This product will be removed from database and CSV backups. Past audit history will remain.</p>
         </div>
         <div class="modal-footer">
             <button id="cancelDeleteModalBtn" class="btn btn-secondary btn-sm">Cancel</button>
@@ -644,14 +674,14 @@
     </div>
 </div>
 
-<!-- Price History Modal (Feature 6 / Phase 3) -->
+<!-- Price History Modal with Pure SVG Trend Chart -->
 <div id="historyModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
     <div class="modal-backdrop" id="modalBackdrop"></div>
     <div class="modal-content">
         <div class="modal-header">
             <div>
-                <h3 id="modalTitle" class="modal-title">Price & Availability History</h3>
-                <p id="modalSubtitle" class="modal-subtitle">Tracking chronological checks from Amazon</p>
+                <h3 id="modalTitle" class="modal-title">Price &amp; Availability History</h3>
+                <p id="modalSubtitle" class="modal-subtitle">Tracking chronological checks from Amazon &amp; Flipkart</p>
             </div>
             <button id="closeModalButton" class="btn btn-ghost btn-sm" aria-label="Close modal">
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
@@ -666,14 +696,14 @@
                 <span>Loading price history...</span>
             </div>
 
-            <!-- Interactive Price Trend Chart (Phase 10) -->
+            <!-- Interactive Pure SVG Price Trend Chart -->
             <div id="historyChartContainer" class="history-chart-card hidden">
                 <div class="chart-header">
                     <span class="chart-title">📈 Price Trend</span>
                     <span id="chartRange" class="chart-range"></span>
                 </div>
                 <div class="chart-svg-wrapper">
-                    <svg id="priceTrendSvg" viewBox="0 0 500 160" preserveAspectRatio="none" class="price-trend-svg" role="img" aria-label="Price trend graph"></svg>
+                    <svg id="priceTrendSvg" viewBox="0 0 500 140" preserveAspectRatio="none" class="price-trend-svg" role="img" aria-label="Price trend graph"></svg>
                 </div>
             </div>
 
@@ -702,7 +732,7 @@
     </div>
 </div>
 
-<!-- Cloud API Settings Modal (Phase 8) -->
+<!-- Cloud Backend Settings Modal -->
 <div id="apiSettingsModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="apiSettingsModalTitle">
     <div class="modal-backdrop" id="apiSettingsModalBackdrop"></div>
     <div class="modal-content">
@@ -721,10 +751,10 @@
         <div class="modal-body">
             <div class="form-group">
                 <label for="apiBaseUrlInput" class="form-label">Spring Boot Backend URL</label>
-                <input type="url" id="apiBaseUrlInput" class="form-control" placeholder="e.g., https://amazon-checker-backend.onrender.com (or leave blank for same-origin)">
-                <small class="form-hint">
-                    Leave blank to use current origin (or Vercel proxy rewrite). When frontend is deployed to Vercel and backend is hosted separately on Render, Railway, or AWS, enter the backend URL here.
-                </small>
+                <input type="url" id="apiBaseUrlInput" class="form-input" placeholder="e.g. https://amazon-checker-backend.onrender.com (leave blank for local)">
+                <span class="form-help">
+                    Leave blank when running locally or using Vercel rewrites. When deployed on Render or Railway, enter the full backend URL here.
+                </span>
             </div>
 
             <div id="apiTestResult" class="api-test-result hidden">
@@ -745,7 +775,7 @@
     </div>
 </div>
 
-<!-- Multi-Store Price Comparison Modal (Phase 9) -->
+<!-- Multi-Store Price Comparison Modal -->
 <div id="comparisonModal" class="modal hidden" role="dialog" aria-modal="true" aria-labelledby="comparisonModalTitle">
     <div class="modal-backdrop" id="comparisonModalBackdrop"></div>
     <div class="modal-content smart-modal comparison-modal">

@@ -52,13 +52,13 @@ function updateApiEndpointBadge() {
     if (!apiEndpointBadge) return;
     const base = getApiBaseUrl();
     if (!base) {
-        apiEndpointBadge.textContent = "API: Default";
+        apiEndpointBadge.textContent = "Spring Boot connected";
     } else {
         try {
             const parsed = new URL(base);
-            apiEndpointBadge.textContent = `API: ${parsed.hostname}`;
+            apiEndpointBadge.textContent = parsed.hostname;
         } catch {
-            apiEndpointBadge.textContent = "API: Custom";
+            apiEndpointBadge.textContent = "Custom Backend";
         }
     }
 }
@@ -837,8 +837,8 @@ function renderPriceTrendChart(historyPoints) {
     priceTrendSvg.innerHTML = `
         <defs>
             <linearGradient id="priceAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-                <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.3" />
-                <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.0" />
+                <stop offset="0%" stop-color="#ff9900" stop-opacity="0.35" />
+                <stop offset="100%" stop-color="#ff9900" stop-opacity="0.0" />
             </linearGradient>
         </defs>
 
@@ -1542,7 +1542,7 @@ function updateStatusAndScheduler(data) {
     if (checking) {
         if (statusElement && statusText) {
             statusElement.className = "status checking";
-            statusText.textContent = "Checking Amazon products...";
+            statusText.textContent = "Checking...";
         }
         if (checkingNotice) {
             checkingNotice.classList.remove("hidden");
@@ -1551,22 +1551,10 @@ function updateStatusAndScheduler(data) {
         if (checkButtonText) checkButtonText.textContent = "Checking...";
         if (runCheckNowButton) runCheckNowButton.disabled = true;
         if (runCheckNowText) runCheckNowText.textContent = "Checking...";
-    } else if (status.includes("automatic monitoring")) {
-        if (statusElement && statusText) {
-            statusElement.className = "status auto-monitoring";
-            statusText.textContent = "● Automatic Monitoring";
-        }
-        if (checkingNotice) {
-            checkingNotice.classList.add("hidden");
-        }
-        if (checkButton) checkButton.disabled = false;
-        if (checkButtonText) checkButtonText.textContent = "Check All Products";
-        if (runCheckNowButton) runCheckNowButton.disabled = false;
-        if (runCheckNowText) runCheckNowText.textContent = "Run Check Now";
     } else {
         if (statusElement && statusText) {
             statusElement.className = "status ready";
-            statusText.textContent = "Ready";
+            statusText.textContent = "API Connected";
         }
         if (checkingNotice) {
             checkingNotice.classList.add("hidden");
@@ -1584,15 +1572,15 @@ function updateStatusAndScheduler(data) {
     if (autoMonitoringBadge) {
         if (enabled) {
             autoMonitoringBadge.className = "badge badge-auto-enabled";
-            autoMonitoringBadge.textContent = "● Enabled";
+            autoMonitoringBadge.textContent = "● Active";
         } else {
             autoMonitoringBadge.className = "badge badge-auto-disabled";
-            autoMonitoringBadge.textContent = "● Disabled";
+            autoMonitoringBadge.textContent = "● Paused";
         }
     }
 
     if (toggleSchedulerText) {
-        toggleSchedulerText.textContent = enabled ? "Disable Auto-Check" : "Enable Auto-Check";
+        toggleSchedulerText.textContent = enabled ? "Pause Monitoring" : "Resume Monitoring";
     }
 
     if (autoIntervalText) {
@@ -1671,7 +1659,7 @@ async function checkProducts() {
 
     if (statusElement && statusText) {
         statusElement.className = "status checking";
-        statusText.textContent = "Checking Amazon products...";
+        statusText.textContent = "Checking...";
     }
 
     if (checkingNotice) {

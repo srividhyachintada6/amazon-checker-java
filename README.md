@@ -1,6 +1,6 @@
-# Amazon Availability & Price Monitoring System
+# Multi-Store E-Commerce Availability & Price Monitoring System
 
-An automated, end-to-end e-commerce product monitoring system built with **Java**, **Spring Boot 3**, **Jsoup**, **Selenium WebDriver**, and modern web technologies. The application periodically tracks Amazon product availability, detects price fluctuations, captures proof screenshots, and presents actionable analytics through a responsive dashboard.
+An automated, end-to-end e-commerce product monitoring system built with **Java 17**, **Spring Boot 3**, **Jsoup**, **Selenium WebDriver**, and modern web technologies. The application periodically tracks product availability and prices across **Amazon** and **Flipkart**, detects price fluctuations, captures verifiable visual screenshots via headless Chrome, renders interactive SVG price trend charts, and provides real-time analytics through a responsive dashboard.
 
 ---
 
@@ -25,49 +25,44 @@ This project delivers an automated solution that monitors targeted products in t
 
 ## 🚀 Key Features
 
-### 1. Smart Product Adding & Management (CRUD)
-* **Option 1 — Direct Link Mode**: Add products directly by entering a product name and valid Amazon URL.
-* **Option 2 — Real Amazon Search Mode**: Search products by name or keywords (e.g. "Amazon Basics HDMI Cable"). Uses live Jsoup search scraping to display selection cards with real thumbnails, prices, stock statuses, and direct links.
-* **Option 3 — Image Upload Mode**: Drag-and-drop or select an image file (PNG, JPG, WEBP <= 5MB). Features instant preview, automated filename sanitization to suggest the product title, editable confirmation, and one-click Amazon search.
-* **Edit & Update**: Modify existing product names and URLs seamlessly.
-* **Remove Products**: Delete products from active monitoring with confirmation protection.
-* **Validation & Uniqueness**: Enforces non-empty names, valid HTTP/HTTPS URLs, and prevents duplicate URLs from being registered.
+### 1. Multi-Store Monitoring & Price Comparison
+* **Unified Multi-Store Engine**: Extensible `ProductStoreScraper` interface supporting both **Amazon** and **Flipkart**, with automatic store detection from URLs.
+* **Side-by-Side Store Comparison**: Live cross-store comparison drawer querying Amazon and Flipkart simultaneously to find best prices and deals.
 
-### 2. Search, Filter & Multi-Criteria Sort
-* **Live Search**: Instant client-side search filtering by product name with a single-click clear control.
-* **Status Filter Tabs**: Filter items by *All*, *In Stock*, *Out of Stock*, or *Errors* with real-time count badges.
-* **Sorting Options**: Sort products by Name (A–Z / Z–A), Price (Low to High / High to Low), or Last Checked timestamp.
+### 2. Smart Product Management & On-Demand Checking
+* **3-in-1 Smart Add**: Add products via Direct Link, Live Store Search (by product title/keywords), or Drag-and-Drop Image upload (with automatic name extraction).
+* **On-Demand Single Product Checking**: Check any individual product with a single click (`POST /api/products/{id}/check`), displaying animated states (`Checking...` → `✔ Success` or `✖ Failed`).
+* **Complete CRUD Lifecycle**: Create, edit, and safely delete products with confirmation modals.
 
-### 3. Full Responsive UI & Mobile Optimization
-* **Fluid Breakpoints**: Optimized for 1440px, 1280px, 1024px, 768px, 640px, 480px, and 375px/320px screens.
-* **Zero Horizontal Scroll**: Enforces strict boundary constraints (`overflow-x: hidden`) across all mobile devices.
-* **Mobile Touch Targets**: All interactive buttons, tabs, inputs, and card actions satisfy minimum 44px touch targets.
-* **Adaptive Grids**: Summary cards and product grids gracefully transition from 6 to 3, 2, and 1 column.
+### 3. Price History & Pure SVG Price Trend Chart
+* **Price Difference Engine**: Accurately detects price drops (`↓ ₹30.00`), price increases (`↑ ₹15.00`), and unchanged prices against previous checks without inventing mock numbers.
+* **Interactive SVG Trend Chart**: A lightweight, zero-dependency inline SVG area and line chart rendered dynamically in vanilla JS, complete with min/max price boundaries and hover tooltips.
+* **Audit History**: Complete chronological log of check timestamps, availability states, and recorded prices.
 
-### 3. Background Scheduler & On-Demand Checking
-* **Automated Background Scheduler**: Built on Java's `ScheduledExecutorService` running periodic checks at configurable intervals (default: 30 minutes via `application.properties`).
-* **Manual Trigger**: "Check All Products" and "Run Check Now" buttons allow immediate checks on demand.
-* **Live Status Polling**: Displays current scheduler status, countdown to the next scheduled check, and animated checking indicators.
+### 4. Background Monitoring & Control
+* **Scheduled Background Execution**: Periodic checks run at configurable intervals (default: 30 minutes) via Java's `ScheduledExecutorService`.
+* **Dynamic Scheduler Toggle**: Enable or disable automated checks on the fly from the UI or REST API (`POST /api/scheduler/toggle`).
+* **Live Countdown Ticker**: Real-time 1-second countdown ticker displaying time remaining until the next automated check.
+* **Tab-Visibility Aware**: Background polling automatically pauses when the browser tab is hidden and resumes immediately when focused.
 
-### 4. Price & Availability Tracking
-* **Availability Analysis**: Detects stock statuses including "In Stock", "Out of Stock", "Currently Unavailable", and error states.
-* **Price Difference Computation**: Calculates previous price and price change amount (e.g. `↓ ₹30.00` or `↑ ₹15.00`) directly from verified historical data.
-* **Product Price History Modal**: View chronological price and availability points for each individual item.
+### 5. 6 Live KPI Analytics Cards
+* **Total Products**: Active monitored product count.
+* **In Stock**: Number of items currently available for purchase.
+* **Out of Stock**: Number of items out of stock or unavailable.
+* **Stores Monitored**: Active store channels (Amazon, Flipkart).
+* **Last Check**: Exact timestamp of the most recent check.
+* **Next Check**: Scheduled time for the upcoming automated scan.
 
-### 5. Automated Screenshots & Security
-* **Selenium Headless Chrome**: Uses WebDriverManager to automatically configure and drive headless Chrome, capturing page screenshots upon each check.
-* **Secure Asset Serving**: Dedicated API endpoint restricts access strictly to the `screenshots/` directory, enforces `.png`/`.jpg` extensions, and prevents directory traversal attacks.
+### 6. Full Search, Filter & Multi-Criteria Sort
+* **Live Search**: Instant case-insensitive filtering by product title.
+* **Store Filtering**: Filter by All Stores, Amazon, or Flipkart.
+* **Availability Filtering**: Filter by All, In Stock, Out of Stock, or Errors.
+* **Comprehensive Sorting**: Sort by Last Checked (Newest / Oldest), Newest Added, Price (Low to High / High to Low), or Product Name (A–Z / Z–A).
 
-### 6. Dashboard Analytics & Global Audit History
-* **6 Key Performance Indicators (KPIs)**:
-  * Total Products Monitored
-  * In Stock Count
-  * Out of Stock Count
-  * Error / Unavailable Count
-  * Active Price Drops
-  * Last Check Timestamp
-* **Recent Monitoring Activity Table**: Chronological audit trail showing recent checks, product names, availability badges, recorded prices, and timestamps.
-* **Raw Activity Log Drawer**: Collapsible raw log viewer reading directly from `data/availability_log.txt`.
+### 7. Responsive & Accessible UI
+* **Zero Horizontal Scroll**: Strictly verified across 320px, 375px, 425px, 768px, 1024px, and 1440px viewport widths.
+* **Mobile-First Touch Targets**: 44px minimum target sizes for buttons, inputs, and tabs.
+* **Accessibility (a11y)**: Focus rings (`:focus-visible`), ARIA attributes, semantic headings, and high-contrast color palette.
 
 ---
 
@@ -201,19 +196,47 @@ Application settings can be configured via environment variables or `src/main/re
 
 | Method | Endpoint | Description | Sample Response / Status |
 |---|---|---|---|
-| `GET` | `/api/health` | Service health, database status, and scheduler metrics | `200 OK` (`{ "status": "UP", "database": "CONNECTED", ... }`) |
-| `GET` | `/api/summary` | Returns 6 KPI summary metrics | `{ "totalProducts": 3, "inStock": 2, "outOfStock": 0, "errors": 1, "priceDrops": 1, ... }` |
-| `GET` | `/api/products` | Returns all active monitored products with status & prices | `200 OK` (JSON array of products) |
-| `GET` | `/api/products/search` | Live search for Amazon products by name or keywords | `200 OK` (JSON array of Amazon search items) |
+| `GET` | `/api/summary` | Returns 6 KPI summary metrics (including stores & next check) | `{ "totalProducts": 3, "inStock": 2, "outOfStock": 1, "storesMonitored": 2, "nextCheck": "..." }` |
+| `GET` | `/api/products` | Returns all active monitored products with prices & deltas | `200 OK` (JSON array of products) |
+| `POST` | `/api/products/{id}/check` | On-demand check of an individual product | `200 OK` (Updated ProductResponse) |
+| `GET` | `/api/products/{id}/history` | Returns price and availability checkpoints for a product | `200 OK` (JSON array of price checkpoints) |
 | `POST` | `/api/products` | Adds a new product to monitoring and persistent database | `201 Created` / `400 Bad Request` / `409 Conflict` |
-| `PUT` | `/api/products/{id}` | Updates an existing product's name or URL | `200 OK` / `400 Bad Request` / `404 Not Found` |
+| `PUT` | `/api/products/{id}` | Updates an existing product's name, URL, or store | `200 OK` / `400 Bad Request` / `404 Not Found` |
 | `DELETE` | `/api/products/{id}` | Removes a product from active monitoring | `200 OK` (`{ "status": "success", ... }`) |
+| `GET` | `/api/products/search` | Live search across Amazon or Flipkart (`?query=...&store=...`) | `200 OK` (JSON array of search items) |
+| `GET` | `/api/products/compare` | Compares product prices across stores (`?query=...`) | `200 OK` (PriceComparisonResponse) |
+| `GET` | `/api/status` | Returns scheduler health, running state, and countdown | `{ "status": "automatic monitoring", "checking": false, ... }` |
+| `POST` | `/api/check` | Triggers an immediate manual check of all products | `200 OK` (`{ "status": "started", ... }`) |
+| `POST` | `/api/scheduler/toggle` | Toggles automatic background monitoring on or off | `200 OK` (`{ "enabled": false, ... }`) |
 | `GET` | `/api/history?limit=25` | Returns chronological global monitoring audit entries | `200 OK` (JSON array of recent checks) |
-| `GET` | `/api/products/{id}/history` | Returns price and availability history points for a product | `200 OK` (JSON array of price checkpoints) |
-| `GET` | `/api/status` | Returns scheduler health and countdown timers | `{ "status": "automatic monitoring", "checking": false, ... }` |
-| `POST` | `/api/check` | Triggers an immediate manual product check | `200 OK` (`{ "status": "started", ... }`) |
 | `GET` | `/api/screenshots/{filename}` | Securely streams a captured screenshot image | `200 OK` (`image/png` or `image/jpeg`) |
+| `GET` | `/api/health` | Service health, database status, and scheduler metrics | `200 OK` (`{ "status": "UP", "database": "CONNECTED", ... }`) |
 | `GET` | `/api/log` | Returns the raw text audit log | `200 OK` (`text/plain`) |
+
+---
+
+## 🗄️ Database Schema
+
+The persistent storage layer utilizes PostgreSQL managed via Spring Data JPA with automatic DDL updates (`spring.jpa.hibernate.ddl-auto=update`), falling back to local H2 in development.
+
+### 1. `monitored_products` Table
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | `VARCHAR(64)` | `PRIMARY KEY` | Product unique identifier / slug |
+| `name` | `VARCHAR(255)` | `NOT NULL` | Product display name |
+| `product_url` | `VARCHAR(1000)` | `NOT NULL, UNIQUE` | E-commerce target URL |
+| `store` | `VARCHAR(32)` | `NOT NULL` | Store identifier (`AMAZON`, `FLIPKART`) |
+| `created_at` | `TIMESTAMP` | `NOT NULL` | Registration timestamp |
+
+### 2. `audit_logs` Table
+| Column | Type | Constraints | Description |
+|---|---|---|---|
+| `id` | `BIGSERIAL` | `PRIMARY KEY` | Auto-increment audit record ID |
+| `product_name` | `VARCHAR(255)` | `NOT NULL` | Monitored product name |
+| `status` | `VARCHAR(64)` | `NOT NULL` | Availability status (`IN STOCK`, `OUT OF STOCK`, etc.) |
+| `price` | `NUMERIC(10,2)` | `NULLABLE` | Scraped price at check time |
+| `timestamp` | `TIMESTAMP` | `NOT NULL` | Execution timestamp |
+| `screenshot_path` | `VARCHAR(255)` | `NULLABLE` | Relative path to screenshot artifact |
 
 ---
 
@@ -325,15 +348,91 @@ java -cp target/amazon-availability-checker.jar com.amazonchecker.Main
 
 ---
 
-## 🔮 Future Improvements
+## 🎓 Interview Preparation Guide
 
-* **Email & Webhook Alerts**: Send notifications via SMTP or Discord/Slack webhooks when a monitored product drops below a target threshold.
-* **Exporting**: One-click export of monitoring history to CSV or Excel.
-* **Multi-Region Support**: Support checking Amazon domains across different regions (Amazon.com, Amazon.co.uk, Amazon.de).
-* **Proxy Rotation**: Configurable HTTP/SOCKS5 proxy rotation to support high-frequency enterprise monitoring.
+This section is written from the authentic perspective of a **B.Tech Computer Science student** explaining this project during software engineering and backend interviews.
+
+---
+
+### 1. Why did you build this project?
+> "I built this project to solve a genuine, everyday problem: e-commerce prices and stock availability change dynamically, and checking pages manually is tedious. I wanted to design an automated, production-style backend system from scratch that connects web scraping, background scheduling, concurrency control, relational persistence, and a modern responsive dashboard—rather than building another standard CRUD app."
+
+---
+
+### 2. What were the key technical challenges you faced?
+> "The three most significant challenges were:
+> 1. **Anti-Scraping Resilience & DOM Volatility**: Amazon and Flipkart frequently change their HTML structure and block basic automated requests. I implemented desktop User-Agent headers, a cascading hierarchy of fallback CSS selectors, and defensive regex parsing so the application never crashes on missing elements or varied currency formats.
+> 2. **Scheduler Concurrency & Race Condition Prevention**: If a scraping cycle takes 40 seconds due to slow responses while another check is triggered, multiple threads could write duplicate logs or compete for database locks. I solved this by implementing a `ReentrantLock` with `tryLock()` in `SchedulerRunner`, ensuring only one check runs at any time.
+> 3. **Dual Persistence & Cloud Readiness**: Transitioning from local CSV files to PostgreSQL without breaking the local developer experience. I implemented Spring Data JPA repositories with a fallback to local H2 file storage, while maintaining CSV dual-writing so local audit backups are never lost."
+
+---
+
+### 3. How does the scraping engine work?
+> "When a check is initiated:
+> 1. The `ScraperFactory` inspects the product URL and resolves the appropriate `ProductStoreScraper` implementation (`AmazonScraper` or `FlipkartScraper`).
+> 2. The scraper sends an HTTP GET request via Jsoup configured with browser-like headers (`User-Agent`, `Accept-Language`, `Accept-Encoding`).
+> 3. It queries a prioritized list of CSS selectors to locate the price element (e.g. `.a-price .a-offscreen`, `#priceblock_ourprice`, `div._30jeq3`).
+> 4. The raw string is cleaned using regular expressions to strip symbols like `₹` and commas, and parsed into a clean `Double`.
+> 5. An `AvailabilityTracker` analyzes keywords such as 'In stock', 'Currently unavailable', or 'Sold Out'.
+> 6. Selenium WebDriver with headless Chrome is invoked to capture a timestamped PNG screenshot for visual audit verification."
+
+---
+
+### 4. Why did you use both Jsoup and Selenium? Why not just one?
+> "Jsoup and Selenium serve two fundamentally different purposes in this architecture:
+> * **Jsoup** is an ultra-fast HTTP client and HTML parser. It fetches and parses HTML in under 200 milliseconds with minimal memory usage. Performing all price checks through Jsoup keeps the system fast and lightweight.
+> * **Selenium WebDriver** is a full browser automation tool. It requires significant CPU and memory to spin up a browser process. Using Selenium for every single HTTP check would be inefficient and unscalable.
+> 
+> Therefore, I use **Jsoup as the primary scraping engine** for speed, and **Selenium headless Chrome exclusively for rendering and capturing visual screenshot proof**. This hybrid approach gives the speed of Jsoup with the visual verification of Selenium."
+
+---
+
+### 5. How does the automatic monitoring scheduler work?
+> "The scheduler uses Java's `ScheduledExecutorService` initialized in `SchedulerRunner`.
+> * It schedules a periodic task at fixed delay (`scheduleWithFixedDelay`) using a configurable interval from `application.properties` (e.g., 30 minutes).
+> * Before running, it checks an `AtomicBoolean` enabled flag (which can be toggled on/off via the dashboard).
+> * It acquires a `ReentrantLock` so that on-demand manual checks and automated background checks never collide or corrupt the audit history.
+> * The frontend tracks the `nextCheck` time from `/api/status` and displays a live 1-second countdown ticker."
+
+---
+
+### 6. How does price history and price change calculation work?
+> "Every time a product is checked, the new price is compared against the most recent previous check for that product.
+> * If `currentPrice < previousPrice`, the system flags a **Price Drop** and computes the exact difference (e.g., `-₹30.00`).
+> * If `currentPrice > previousPrice`, it flags a **Price Increase**.
+> * These checkpoints are saved into the `audit_logs` table.
+> * When a user opens the price history modal, the frontend queries `/api/products/{id}/history`, renders an interactive table, and dynamically generates a lightweight SVG polyline chart illustrating price movement over time without downloading any bulky third-party libraries."
+
+---
+
+### 7. How does the multi-store architecture work?
+> "I designed the multi-store architecture around the **Strategy Pattern** and **Factory Pattern**:
+> 1. An interface called `ProductStoreScraper` defines common methods: `scrapeProduct(url)`, `searchProducts(keyword)`, and `getStoreName()`.
+> 2. `AmazonScraper` and `FlipkartScraper` implement this interface, containing platform-specific DOM selectors and extraction logic.
+> 3. `ScraperFactory` inspects the domain name or store tag and provides the correct implementation.
+> 4. `ProductService` and `DashboardController` only interact with the `ProductStoreScraper` interface.
+> 
+> This means adding a new store (like Croma or Reliance Digital) only requires creating a new scraper class implementing the interface, without changing the dashboard, database models, or scheduler."
+
+---
+
+### 8. What is the deployment architecture?
+> "The frontend and backend are completely decoupled:
+> * **Frontend**: Pure HTML5, CSS3, and JavaScript hosted on **Vercel CDN** for fast edge delivery worldwide. The frontend contains an API configuration modal so it can point to any backend URL.
+> * **Backend**: A containerized Spring Boot service hosted on **Render** running Java 17 and headless Chrome. It handles scheduling, scraping, and REST endpoints.
+> * **Database**: Managed PostgreSQL hosted on **Neon.tech** connected via JDBC over SSL.
+> * **Local Fallback**: For local development, the app automatically falls back to an embedded H2 file database and local CSV storage, ensuring it runs out-of-the-box on any developer's machine."
+
+---
+
+## 🔮 Limitations & Future Improvements
+
+* **Email & Push Notifications**: Integrating JavaMailSender or Discord webhooks to alert users the moment a price drops below a threshold.
+* **Proxy Pool Integration**: Adding rotating residential proxies for enterprise-grade crawling resilience.
+* **User Authentication**: Adding multi-tenant JWT-based authentication so multiple users can maintain separate product watchlists.
 
 ---
 
 ## 📄 License
 
-This project is developed for educational and portfolio demonstration purposes. All product names, logos, and brands are property of their respective owners.
+This project is open-source and intended for academic, educational, and portfolio demonstration purposes. All brand names (Amazon, Flipkart) are property of their respective owners.

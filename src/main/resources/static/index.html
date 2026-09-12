@@ -98,29 +98,16 @@
         </div>
 
         <div class="stat-card">
-            <div class="stat-icon stat-icon-rose">
+            <div class="stat-icon stat-icon-cyan">
                 <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polygon points="7.86 2 16.14 2 22 7.86 22 16.14 16.14 22 7.86 22 2 16.14 2 7.86 7.86 2"></polygon>
-                    <line x1="12" y1="8" x2="12" y2="12"></line>
-                    <line x1="12" y1="16" x2="12.01" y2="16"></line>
+                    <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+                    <polyline points="9 22 9 12 15 12 15 22"></polyline>
                 </svg>
             </div>
             <div class="stat-content">
-                <span class="stat-label">Errors</span>
-                <span id="statErrors" class="stat-value">0</span>
-            </div>
-        </div>
-
-        <div class="stat-card">
-            <div class="stat-icon stat-icon-amber">
-                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="23 18 13.5 8.5 8.5 13.5 1 6"></polyline>
-                    <polyline points="17 18 23 18 23 12"></polyline>
-                </svg>
-            </div>
-            <div class="stat-content">
-                <span class="stat-label">Price Drops</span>
-                <span id="statPriceDrops" class="stat-value">0</span>
+                <span class="stat-label">Stores Monitored</span>
+                <span id="statStoresMonitored" class="stat-value">2</span>
+                <span id="statStoresList" class="stat-subtext">Amazon, Flipkart</span>
             </div>
         </div>
 
@@ -134,6 +121,19 @@
             <div class="stat-content">
                 <span class="stat-label">Last Check</span>
                 <span id="statLastCheck" class="stat-value stat-value-time">Never</span>
+            </div>
+        </div>
+
+        <div class="stat-card">
+            <div class="stat-icon stat-icon-amber">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polyline points="12 6 12 12 16 14"></polyline>
+                </svg>
+            </div>
+            <div class="stat-content">
+                <span class="stat-label">Next Check</span>
+                <span id="statNextCheck" class="stat-value stat-value-time">30m</span>
             </div>
         </div>
     </section>
@@ -166,6 +166,10 @@
                     <span id="nextCheckCountdown" class="next-check-val">30 minutes</span>
                     <span id="nextCheckDetail" class="next-check-detail"></span>
                 </div>
+
+                <button id="toggleSchedulerBtn" class="btn btn-outline btn-sm" title="Toggle automatic background monitoring">
+                    <span id="toggleSchedulerText">Disable Auto-Check</span>
+                </button>
 
                 <button id="runCheckNowButton" class="btn btn-primary btn-run-now" title="Trigger an immediate Amazon check">
                     <svg class="btn-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -264,11 +268,13 @@
             <div class="sort-box">
                 <label for="sortSelect" class="sort-label">Sort:</label>
                 <select id="sortSelect" class="sort-select" aria-label="Sort products">
-                    <option value="name-asc">Name (A-Z)</option>
-                    <option value="name-desc">Name (Z-A)</option>
+                    <option value="time-desc" selected>Newest Checked</option>
+                    <option value="time-asc">Oldest Checked</option>
+                    <option value="newest-added">Newest Added</option>
                     <option value="price-asc">Price: Low to High</option>
                     <option value="price-desc">Price: High to Low</option>
-                    <option value="time-desc" selected>Last Checked</option>
+                    <option value="name-asc">Name (A-Z)</option>
+                    <option value="name-desc">Name (Z-A)</option>
                 </select>
             </div>
         </div>
@@ -659,6 +665,18 @@
                 <div class="spinner"></div>
                 <span>Loading price history...</span>
             </div>
+
+            <!-- Interactive Price Trend Chart (Phase 10) -->
+            <div id="historyChartContainer" class="history-chart-card hidden">
+                <div class="chart-header">
+                    <span class="chart-title">📈 Price Trend</span>
+                    <span id="chartRange" class="chart-range"></span>
+                </div>
+                <div class="chart-svg-wrapper">
+                    <svg id="priceTrendSvg" viewBox="0 0 500 160" preserveAspectRatio="none" class="price-trend-svg" role="img" aria-label="Price trend graph"></svg>
+                </div>
+            </div>
+
             <div id="historyTableContainer" class="history-table-wrapper">
                 <table class="history-table">
                     <thead>

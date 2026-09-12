@@ -5,6 +5,7 @@ import com.amazonchecker.entity.ProductEntity;
 import com.amazonchecker.model.Store;
 import com.amazonchecker.repository.MonitoringResultRepository;
 import com.amazonchecker.repository.ProductRepository;
+import com.amazonchecker.scraper.ProductStoreScraper;
 import com.amazonchecker.scraper.StoreScraperFactory;
 import com.amazonchecker.utils.CsvHandler;
 import com.amazonchecker.utils.LogWriter;
@@ -246,7 +247,46 @@ public class ProductService {
             }
         }
 
-        return new SummaryResponse(total, inStock, outOfStock, errors, priceDrops, latestCheck);
+        Set<String> uniqueStores = new LinkedHashSet<>();
+        for (ProductResponse p : products) {
+            if (p.getStore() != null && !p.getStore().isBlank()) {
+                String storeName = p.getStore().equalsIgnoreCase("FLIPKART") ? "Flipkart" : "Amazon";
+                uniqueStores.add(storeName);
+            }
+        }
+        int storesMonitored = uniqueStores.size();
+        String storesList = String.join(", ", uniqueStores);
+
+        return new SummaryResponse(total, inStock, outOfStock, errors, priceDrops, latestCheck, storesMonitored, storesList, null);
+    }
+
+    /**
+     * Checks an individual product immediately on-demand across its configured store.
+     */
+    @Transactional
+    public ProductResponse checkSingleProduct(String idOrSlug) {
+        ProductEntity entity = findProductByIdOrSlug(idOrSlug)
+                .orElseThrow(() -> new NoSuchElementException("Product not found: " + idOrSlug));
+
+        if (storeScraperFactory == null) {
+            throw new IllegalStateException("Scraper factory is not configured");
+        }
+
+        ProductStoreScraper scraper = storeScraperFactory.getScraperForUrl(entity.getUrl());
+        if (scraper == null) {
+            throw new IllegalArgumentException("No scraper available for product URL: " + entity.getUrl());
+        }
+
+        try {
+            ScrapeResult result = scraper.checkProduct(entity.getUrl(), entity.getName());
+            recordCheckResult(entity, result);
+        } catch (Exception e) {
+            System.err.println("❌ Error checking product '" + entity.getName() + "': " + e.getMessage());
+            recordCheckResult(entity, "CHECK ERROR", null, null);
+            throw new RuntimeException("Unable to check this product right now. Please try again shortly.");
+        }
+
+        return mapToProductResponse(entity, loadLatestScreenshotFilenames());
     }
 
     @Transactional

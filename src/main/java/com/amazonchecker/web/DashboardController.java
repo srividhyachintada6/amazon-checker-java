@@ -107,7 +107,11 @@ public class DashboardController {
 
     @GetMapping(value = "/summary", produces = MediaType.APPLICATION_JSON_VALUE)
     public SummaryResponse getSummary() {
-        return productService.getSummary();
+        SummaryResponse summary = productService.getSummary();
+        if (summary != null && schedulerRunner != null) {
+            summary.setNextCheck(schedulerRunner.getFormattedNextCheckTime());
+        }
+        return summary;
     }
 
     /**
@@ -197,8 +201,31 @@ public class DashboardController {
 
         return Map.of(
                 "status", "started",
-                "message", "Amazon checking started"
+                "message", "Product checking started across all stores"
         );
+    }
+
+    /**
+     * Triggers an immediate availability and price check for a specific individual product.
+     */
+    @PostMapping(value = "/products/{id}/check", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<ProductResponse> checkIndividualProduct(@PathVariable("id") String id) {
+        ProductResponse updated = productService.checkSingleProduct(id);
+        return ResponseEntity.ok(updated);
+    }
+
+    /**
+     * Toggles automatic background scheduler on/off dynamically.
+     */
+    @PostMapping(value = "/scheduler/toggle", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<Map<String, Object>> toggleScheduler() {
+        boolean enabled = schedulerRunner.toggleEnabled();
+        return ResponseEntity.ok(Map.of(
+                "status", "success",
+                "enabled", enabled,
+                "message", enabled ? "Automatic monitoring enabled" : "Automatic monitoring disabled",
+                "nextCheck", schedulerRunner.getFormattedNextCheckTime() != null ? schedulerRunner.getFormattedNextCheckTime() : ""
+        ));
     }
 
     @GetMapping("/log")
@@ -273,9 +300,10 @@ public class DashboardController {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<Map<String, String>> handleGeneralError(Exception e) {
+        System.err.println("⚠️ Server error handling request: " + e.getMessage());
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(Map.of(
                 "status", "error",
-                "message", "An error occurred while processing your request"
+                "message", "Unable to process this request right now. Please try again later."
         ));
     }
 }

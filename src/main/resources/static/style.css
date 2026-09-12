@@ -2440,3 +2440,179 @@ pre#results::-webkit-scrollbar-thumb:hover {
 .comparison-store-link:hover {
     opacity: 0.9;
 }
+
+/* ===================================================================
+   Phase 10: Portfolio & Interview Polish Styling
+   =================================================================== */
+
+/* Stores Monitored Card Icon */
+.stat-icon-cyan {
+    background-color: rgba(6, 182, 212, 0.12);
+    color: #0891b2;
+}
+
+.stat-subtext {
+    font-size: 0.72rem;
+    color: var(--text-muted);
+    margin-top: 2px;
+    line-height: 1.2;
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 150px;
+}
+
+/* Individual Product Card Check Button */
+.btn-check-product {
+    transition: all 0.2s ease;
+}
+
+.btn-check-product.is-checking {
+    opacity: 0.75;
+    pointer-events: none;
+}
+
+.btn-check-product.is-success {
+    border-color: #10b981 !important;
+    color: #065f46 !important;
+    background-color: #ecfdf5 !important;
+}
+
+.btn-check-product.is-failed {
+    border-color: #ef4444 !important;
+    color: #991b1b !important;
+    background-color: #fef2f2 !important;
+}
+
+/* Price Trend SVG Chart in History Modal */
+.history-chart-card {
+    background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+    border: 1px solid var(--border-color);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 20px;
+    box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.03);
+}
+
+.chart-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.chart-title {
+    font-size: 0.88rem;
+    font-weight: 700;
+    color: var(--text-primary);
+}
+
+.chart-range {
+    font-size: 0.76rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    background-color: #ffffff;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    border: 1px solid var(--border-color);
+}
+
+.chart-svg-wrapper {
+    width: 100%;
+    height: 140px;
+}
+
+.price-trend-svg {
+    width: 100%;
+    height: 100%;
+    overflow: visible;
+}
+
+.chart-grid-line {
+    stroke: #e2e8f0;
+    stroke-dasharray: 4 4;
+    stroke-width: 1;
+}
+
+.chart-area-fill {
+    fill: url(#chartGradient);
+    opacity: 0.35;
+}
+
+.chart-line-stroke {
+    fill: none;
+    stroke: var(--primary);
+    stroke-width: 2.5;
+    stroke-linecap: round;
+    stroke-linejoin: round;
+}
+
+.chart-point {
+    fill: #ffffff;
+    stroke: var(--primary);
+    stroke-width: 2.5;
+    transition: r 0.15s ease;
+    cursor: pointer;
+}
+
+.chart-point:hover {
+    r: 6;
+    fill: var(--primary);
+}
+
+.chart-label {
+    font-size: 10px;
+    fill: var(--text-muted);
+    font-weight: 600;
+    text-anchor: middle;
+}
+
+/* Universal Visible Focus Rings (Accessibility) */
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible {
+    outline: 2px solid var(--primary);
+    outline-offset: 2px;
+}
+
+/* Touch targets and responsive polish */
+@media (max-width: 425px) {
+    .stat-card {
+        padding: 14px;
+    }
+
+    .stat-subtext {
+        max-width: 120px;
+    }
+
+    .product-card-footer {
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .product-card-footer .btn {
+        width: 100%;
+    }
+
+    .monitoring-action-block {
+        flex-direction: column;
+        align-items: stretch;
+        width: 100%;
+    }
+
+    .monitoring-action-block .btn {
+        width: 100%;
+    }
+}
+
+@media (min-width: 1280px) and (max-width: 1440px) {
+    .container {
+        max-width: 1240px;
+    }
+
+    .product-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}

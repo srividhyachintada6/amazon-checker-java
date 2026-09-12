@@ -80,6 +80,16 @@ public class SchedulerRunner {
         this.enabled = enabled;
     }
 
+    public synchronized boolean toggleEnabled() {
+        this.enabled = !this.enabled;
+        if (this.enabled) {
+            if (!running || schedulerThread == null || !schedulerThread.isAlive()) {
+                start();
+            }
+        }
+        return this.enabled;
+    }
+
     @PostConstruct
     public void start() {
         initializeTimesFromLog();

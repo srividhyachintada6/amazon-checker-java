@@ -73,6 +73,8 @@ const autoMonitoringBadge = document.getElementById("autoMonitoringBadge");
 const autoIntervalText = document.getElementById("autoIntervalText");
 const nextCheckCountdown = document.getElementById("nextCheckCountdown");
 const nextCheckDetail = document.getElementById("nextCheckDetail");
+const toggleSchedulerBtn = document.getElementById("toggleSchedulerBtn");
+const toggleSchedulerText = document.getElementById("toggleSchedulerText");
 
 const results = document.getElementById("results");
 const statusElement = document.getElementById("status");
@@ -98,9 +100,12 @@ const productSkeletons = document.getElementById("productSkeletons");
 const statTotal = document.getElementById("statTotal");
 const statInStock = document.getElementById("statInStock");
 const statOutOfStock = document.getElementById("statOutOfStock");
+const statStoresMonitored = document.getElementById("statStoresMonitored");
+const statStoresList = document.getElementById("statStoresList");
+const statLastCheck = document.getElementById("statLastCheck");
+const statNextCheck = document.getElementById("statNextCheck");
 const statErrors = document.getElementById("statErrors");
 const statPriceDrops = document.getElementById("statPriceDrops");
-const statLastCheck = document.getElementById("statLastCheck");
 
 // Product Management (Add/Edit) Modal Elements
 const addProductButton = document.getElementById("addProductButton");
@@ -209,6 +214,9 @@ const historyLoading = document.getElementById("historyLoading");
 const historyTableContainer = document.getElementById("historyTableContainer");
 const historyTableBody = document.getElementById("historyTableBody");
 const historyEmpty = document.getElementById("historyEmpty");
+const historyChartContainer = document.getElementById("historyChartContainer");
+const chartRange = document.getElementById("chartRange");
+const priceTrendSvg = document.getElementById("priceTrendSvg");
 
 // Toggle raw activity log drawer
 if (toggleLogButton && logContainer) {
@@ -409,9 +417,12 @@ function renderSummary(summary) {
     if (statTotal) statTotal.textContent = summary.totalProducts ?? 0;
     if (statInStock) statInStock.textContent = summary.inStock ?? 0;
     if (statOutOfStock) statOutOfStock.textContent = summary.outOfStock ?? 0;
+    if (statStoresMonitored) statStoresMonitored.textContent = summary.storesMonitored ?? 1;
+    if (statStoresList) statStoresList.textContent = summary.storesList || "Amazon, Flipkart";
+    if (statLastCheck) statLastCheck.textContent = summary.lastChecked ? formatDateTime(summary.lastChecked) : "Never";
+    if (statNextCheck) statNextCheck.textContent = summary.nextCheck ? formatTimeOnly(summary.nextCheck) : "30m";
     if (statErrors) statErrors.textContent = summary.errors ?? 0;
     if (statPriceDrops) statPriceDrops.textContent = summary.priceDrops ?? 0;
-    if (statLastCheck) statLastCheck.textContent = formatDateTime(summary.lastChecked);
 }
 
 /**
@@ -472,6 +483,17 @@ function applyFiltersAndRender() {
             const pa = a.price !== null && a.price !== undefined ? a.price : -1;
             const pb = b.price !== null && b.price !== undefined ? b.price : -1;
             return pb - pa;
+        } else if (currentSort === "time-asc") {
+            const ta = a.lastChecked || "9999-99-99";
+            const tb = b.lastChecked || "9999-99-99";
+            return ta.localeCompare(tb);
+        } else if (currentSort === "newest-added") {
+            const idA = Number(a.id);
+            const idB = Number(b.id);
+            if (!isNaN(idA) && !isNaN(idB)) {
+                return idB - idA;
+            }
+            return (b.id || "").localeCompare(a.id || "");
         } else {
             // time-desc (Newest last checked first)
             const ta = a.lastChecked || "";
@@ -650,6 +672,11 @@ function renderProducts(products) {
                         </button>
                     `}
 
+                    <button class="btn btn-outline btn-sm btn-check-product" id="check-btn-${escapeHtml(product.id)}" onclick="checkIndividualProduct('${escapeHtml(product.id)}', this)" title="Check availability and price now" aria-label="Check ${escapeHtml(product.name)} now">
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                        <span>Check Now</span>
+                    </button>
+
                     <button class="btn btn-ghost btn-sm btn-full" onclick="openPriceHistory('${escapeHtml(product.id)}', '${escapeHtml(product.name)}')">
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                             <circle cx="12" cy="12" r="10"></circle>
@@ -666,6 +693,181 @@ function renderProducts(products) {
 }
 
 /**
+ * On-demand check for an individual product (Phase 10)
+ */
+async function checkIndividualProduct(productId, btn) {
+    if (!btn || btn.disabled) return;
+    const originalContent = btn.innerHTML;
+
+    btn.disabled = true;
+    btn.className = "btn btn-outline btn-sm btn-check-product is-checking";
+    btn.innerHTML = `
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="spin-icon"><path d="M21 12a9 9 0 1 1-6.219-8.56"></path></svg>
+        <span>Checking...</span>
+    `;
+
+    try {
+        const res = await fetch(apiUrl(`/api/products/${encodeURIComponent(productId)}/check`), {
+            method: "POST"
+        });
+
+        if (!res.ok) {
+            let errorMsg = "Unable to check this product right now.";
+            try {
+                const errData = await res.json();
+                if (errData && errData.message) errorMsg = errData.message;
+            } catch (_) {}
+            throw new Error(errorMsg);
+        }
+
+        const updatedProduct = await res.json();
+
+        // Update in allProducts list
+        const idx = allProducts.findIndex(p => String(p.id) === String(productId));
+        if (idx !== -1) {
+            allProducts[idx] = updatedProduct;
+        }
+
+        // Show Success state on button
+        btn.className = "btn btn-outline btn-sm btn-check-product is-success";
+        btn.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="20 6 9 17 4 12"></polyline></svg>
+            <span>Success</span>
+        `;
+
+        // Refresh Summary in background
+        fetch(apiUrl("/api/summary"))
+            .then(r => r.json())
+            .then(summary => renderSummary(summary))
+            .catch(() => {});
+
+        // Re-render product cards after 800ms
+        setTimeout(() => {
+            applyFiltersAndRender();
+        }, 800);
+
+    } catch (err) {
+        console.error("Individual check error:", err);
+        btn.className = "btn btn-outline btn-sm btn-check-product is-failed";
+        btn.innerHTML = `
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+            <span>Failed</span>
+        `;
+        showError(err.message || "Unable to check this product right now.");
+
+        setTimeout(() => {
+            btn.disabled = false;
+            btn.className = "btn btn-outline btn-sm btn-check-product";
+            btn.innerHTML = originalContent;
+        }, 3000);
+    }
+}
+window.checkIndividualProduct = checkIndividualProduct;
+
+/**
+ * Render lightweight pure SVG Price Trend Chart (Phase 10)
+ */
+function renderPriceTrendChart(historyPoints) {
+    if (!historyChartContainer || !priceTrendSvg) return;
+
+    if (!Array.isArray(historyPoints) || historyPoints.length < 2) {
+        historyChartContainer.classList.add("hidden");
+        return;
+    }
+
+    // Filter points with valid numeric prices (chronological order)
+    const validPoints = historyPoints.filter(p => p && p.price !== null && p.price !== undefined && !isNaN(p.price) && Number(p.price) > 0);
+
+    if (validPoints.length < 2) {
+        historyChartContainer.classList.add("hidden");
+        return;
+    }
+
+    historyChartContainer.classList.remove("hidden");
+
+    const prices = validPoints.map(p => Number(p.price));
+    const minPrice = Math.min(...prices);
+    const maxPrice = Math.max(...prices);
+
+    if (chartRange) {
+        chartRange.textContent = `₹${minPrice.toFixed(2)} - ₹${maxPrice.toFixed(2)} (${validPoints.length} checks)`;
+    }
+
+    const width = 500;
+    const height = 140;
+    const padL = 45;
+    const padR = 25;
+    const padT = 20;
+    const padB = 25;
+
+    const plotW = width - padL - padR;
+    const plotH = height - padT - padB;
+
+    const priceSpan = (maxPrice === minPrice) ? (maxPrice * 0.1 || 10) : (maxPrice - minPrice);
+
+    // Compute coordinates
+    const coords = validPoints.map((pt, i) => {
+        const x = padL + (i / (validPoints.length - 1)) * plotW;
+        const norm = (Number(pt.price) - minPrice) / priceSpan;
+        const y = padT + plotH - (norm * plotH);
+        return { x, y, price: Number(pt.price), time: pt.timestamp, status: pt.status };
+    });
+
+    const polylinePoints = coords.map(c => `${c.x.toFixed(1)},${c.y.toFixed(1)}`).join(" ");
+    const areaPoints = `${padL},${height - padB} ` + polylinePoints + ` ${width - padR},${height - padB}`;
+
+    // Mid price for horizontal line
+    const midPrice = (minPrice + maxPrice) / 2;
+    const midY = padT + plotH - (((midPrice - minPrice) / priceSpan) * plotH);
+
+    let circlesHtml = "";
+    coords.forEach(c => {
+        const timeStr = formatDateTime(c.time);
+        circlesHtml += `
+            <circle cx="${c.x.toFixed(1)}" cy="${c.y.toFixed(1)}" r="4.5" class="chart-point">
+                <title>₹${c.price.toFixed(2)} (${c.status}) - ${timeStr}</title>
+            </circle>
+        `;
+    });
+
+    const firstTime = formatTimeOnly(validPoints[0].timestamp);
+    const lastTime = formatTimeOnly(validPoints[validPoints.length - 1].timestamp);
+
+    priceTrendSvg.setAttribute("viewBox", `0 0 ${width} ${height}`);
+    priceTrendSvg.innerHTML = `
+        <defs>
+            <linearGradient id="priceAreaGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#4f46e5" stop-opacity="0.3" />
+                <stop offset="100%" stop-color="#4f46e5" stop-opacity="0.0" />
+            </linearGradient>
+        </defs>
+
+        <!-- Horizontal grid lines -->
+        <line x1="${padL}" y1="${padT}" x2="${width - padR}" y2="${padT}" class="chart-grid-line" stroke-dasharray="3,3" />
+        <line x1="${padL}" y1="${midY.toFixed(1)}" x2="${width - padR}" y2="${midY.toFixed(1)}" class="chart-grid-line" stroke-dasharray="3,3" />
+        <line x1="${padL}" y1="${height - padB}" x2="${width - padR}" y2="${height - padB}" class="chart-grid-line" />
+
+        <!-- Price Labels -->
+        <text x="${padL - 6}" y="${padT + 4}" class="chart-label" text-anchor="end">₹${Math.round(maxPrice)}</text>
+        <text x="${padL - 6}" y="${midY.toFixed(1) + 4}" class="chart-label" text-anchor="end">₹${Math.round(midPrice)}</text>
+        <text x="${padL - 6}" y="${height - padB + 3}" class="chart-label" text-anchor="end">₹${Math.round(minPrice)}</text>
+
+        <!-- Area Fill -->
+        <polygon points="${areaPoints}" class="chart-area-fill" />
+
+        <!-- Line Stroke -->
+        <polyline points="${polylinePoints}" class="chart-line-stroke" />
+
+        <!-- Data Points with hover title -->
+        ${circlesHtml}
+
+        <!-- X-axis Time Labels -->
+        <text x="${padL}" y="${height - 6}" class="chart-label" text-anchor="start">${escapeHtml(firstTime)}</text>
+        <text x="${width - padR}" y="${height - 6}" class="chart-label" text-anchor="end">${escapeHtml(lastTime)}</text>
+    `;
+}
+
+/**
  * Open Price History Modal for a product
  */
 async function openPriceHistory(productId, productName) {
@@ -677,6 +879,7 @@ async function openPriceHistory(productId, productName) {
     if (historyLoading) historyLoading.classList.remove("hidden");
     if (historyTableContainer) historyTableContainer.classList.add("hidden");
     if (historyEmpty) historyEmpty.classList.add("hidden");
+    if (historyChartContainer) historyChartContainer.classList.add("hidden");
     if (historyTableBody) historyTableBody.innerHTML = "";
 
     try {
@@ -692,6 +895,9 @@ async function openPriceHistory(productId, productName) {
             if (historyEmpty) historyEmpty.classList.remove("hidden");
             return;
         }
+
+        // Render pure SVG price trend chart
+        renderPriceTrendChart(historyPoints);
 
         if (historyTableContainer) historyTableContainer.classList.remove("hidden");
 
@@ -734,6 +940,7 @@ async function openPriceHistory(productId, productName) {
     } catch (error) {
         console.error("Error loading price history:", error);
         if (historyLoading) historyLoading.classList.add("hidden");
+        if (historyChartContainer) historyChartContainer.classList.add("hidden");
         if (historyEmpty) {
             historyEmpty.innerHTML = `<p style="color: var(--danger);">Failed to load history: ${escapeHtml(error.message)}</p>`;
             historyEmpty.classList.remove("hidden");
@@ -1384,6 +1591,10 @@ function updateStatusAndScheduler(data) {
         }
     }
 
+    if (toggleSchedulerText) {
+        toggleSchedulerText.textContent = enabled ? "Disable Auto-Check" : "Enable Auto-Check";
+    }
+
     if (autoIntervalText) {
         autoIntervalText.textContent = `${intervalMinutes} minutes`;
     }
@@ -1520,6 +1731,7 @@ function waitForCompletion() {
 
 // Background idle poller: checks status every 5 seconds to detect automated scheduler runs
 setInterval(async () => {
+    if (document.hidden) return; // Pause background polling when tab is hidden (Phase 10 performance optimization)
     if (pollingInterval) return; // Already polling actively
 
     const wasChecking = isCurrentlyChecking;
@@ -1547,6 +1759,36 @@ if (checkButton) {
 if (runCheckNowButton) {
     runCheckNowButton.addEventListener("click", checkProducts);
 }
+
+if (toggleSchedulerBtn) {
+    toggleSchedulerBtn.addEventListener("click", async () => {
+        try {
+            toggleSchedulerBtn.disabled = true;
+            const res = await fetch(apiUrl("/api/scheduler/toggle"), {
+                method: "POST"
+            });
+            if (!res.ok) throw new Error(`HTTP ${res.status}`);
+            const data = await res.json();
+            if (toggleSchedulerText) {
+                toggleSchedulerText.textContent = data.enabled ? "Disable Auto-Check" : "Enable Auto-Check";
+            }
+            await fetchStatus();
+        } catch (e) {
+            console.error("Failed to toggle scheduler:", e);
+            showError("Unable to toggle automatic monitoring right now.");
+        } finally {
+            toggleSchedulerBtn.disabled = false;
+        }
+    });
+}
+
+// Resume and refresh immediately when user switches back to this browser tab
+document.addEventListener("visibilitychange", () => {
+    if (!document.hidden) {
+        fetchStatus();
+        loadDashboardData();
+    }
+});
 
 if (refreshButton) {
     refreshButton.addEventListener("click", () => {
